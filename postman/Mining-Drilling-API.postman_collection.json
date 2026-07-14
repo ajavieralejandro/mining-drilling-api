@@ -1,0 +1,975 @@
+{
+  "info": {
+    "_postman_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "name": "Mining Drilling API",
+    "description": "Colección de pruebas MANUALES únicamente — no ejecutar de forma automatizada en CI.\n\nFecha de auditoría: 2026-07-14.\n\nBase: routes/api.php (Laravel Sanctum). Importar junto con el environment de ejemplo y apuntar base_url a un entorno local/testing.\n\nNOTA: Los endpoints HTTP de Users (/users) y Audit (/audit-events u similares) NO ESTÁN IMPLEMENTADOS. El modelo AuditLog existe solo para escritura interna vía AuditLogger; no hay carpetas funcionales 11 Users ni 14 Audit en esta colección.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "plan_id", "value": "1" },
+    { "key": "platform_id", "value": "1" },
+    { "key": "drill_hole_id", "value": "1" },
+    { "key": "assignment_id", "value": "" },
+    { "key": "progress_id", "value": "" },
+    { "key": "observation_id", "value": "1" },
+    { "key": "risk_id", "value": "" },
+    { "key": "machine_id", "value": "" },
+    { "key": "import_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/health",
+            "description": "Público. Sin Authorization."
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) {",
+                  "    pm.environment.set(\"token\", body.token);",
+                  "}",
+                  "if (body.user && body.user.id) {",
+                  "    pm.environment.set(\"user_id\", String(body.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{base_url}}/auth/login",
+            "description": "Público. Guarda token y user_id en el environment si la respuesta es exitosa."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "description": "Protegido. Requiere Bearer token."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/auth/logout",
+            "description": "Protegido. Elimina el token actual (Sanctum)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Dashboard",
+      "item": [
+        {
+          "name": "GET Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/dashboard/summary",
+            "description": "Resumen operativo filtrado por rol."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Drilling Plans",
+      "item": [
+        {
+          "name": "List Drilling Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans",
+            "description": "Lista planes. Actualizar plan_id tras la respuesta."
+          }
+        },
+        {
+          "name": "Get Drilling Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans/{{plan_id}}",
+            "description": "Detalle de un plan."
+          }
+        },
+        {
+          "name": "List Platforms by Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans/{{plan_id}}/platforms",
+            "description": "Plataformas del plan. Actualizar platform_id."
+          }
+        },
+        {
+          "name": "List Available Machines by Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans/{{plan_id}}/available-machines",
+            "description": "Máquinas disponibles para el plan."
+          }
+        },
+        {
+          "name": "List Plan Files",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans/{{plan_id}}/files",
+            "description": "Archivos asociados al plan (también cubierto en carpeta 12)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Platforms",
+      "item": [
+        {
+          "name": "Get Drilling Platform",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-platforms/{{platform_id}}",
+            "description": "Detalle de plataforma."
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Drill Holes",
+      "item": [
+        {
+          "name": "List Drill Holes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drill-holes",
+            "description": "Lista pozos (filtrada por rol/asignación)."
+          }
+        },
+        {
+          "name": "Create Drill Hole",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"drilling_plan_id\": {{plan_id}},\n  \"drilling_platform_id\": {{platform_id}},\n  \"hole_id\": \"DH-MANUAL-001\",\n  \"length\": 100,\n  \"azimuth\": 45,\n  \"dip\": -60,\n  \"status\": \"planned\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes",
+            "description": "StoreDrillHoleRequest. Requiere permiso create (admin/supervisor/geologist)."
+          }
+        },
+        {
+          "name": "Get Drill Hole",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}",
+            "description": "Detalle de pozo."
+          }
+        },
+        {
+          "name": "Update Technical Data",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"azimuth\": 90,\n  \"dip\": -55,\n  \"length\": 120,\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/technical-data",
+            "description": "UpdateTechnicalDataRequest. Policy: admin/geologist."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Assignments",
+      "item": [
+        {
+          "name": "Create Assignment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_in_hole\": \"driller\",\n  \"assigned_from\": \"2026-07-14\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/assignments",
+            "description": "StoreAssignmentRequest. Policy: admin/supervisor."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Progress",
+      "item": [
+        {
+          "name": "Create Progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 0,\n  \"depth_to\": 10,\n  \"depth_current\": 10,\n  \"shift\": \"A\",\n  \"observations\": \"Manual progress test\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/progress",
+            "description": "StoreProgressRequest. Policy: admin o driller asignado."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Observations",
+      "item": [
+        {
+          "name": "List Observations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/observations",
+            "description": "Lista observaciones del pozo."
+          }
+        },
+        {
+          "name": "Create Observation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"operational\",\n  \"body\": \"Observación manual de prueba\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/observations",
+            "description": "StoreObservationRequest."
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Risks",
+      "item": [
+        {
+          "name": "Create Risk",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Riesgo reportado manualmente\",\n  \"risk_level\": \"medium\",\n  \"depth_detected\": 15\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/risks",
+            "description": "StoreRiskRequest. Actualizar observation_id / risk_id tras crear."
+          }
+        },
+        {
+          "name": "List Risks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/risks",
+            "description": "GET /risks — listado global de riesgos."
+          }
+        },
+        {
+          "name": "Close Risk",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"risk_status\": \"closed\"\n}"
+            },
+            "url": "{{base_url}}/observations/{{observation_id}}/close-risk",
+            "description": "CloseRiskRequest. Policy: admin/supervisor/geotechnical."
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Machines",
+      "item": [
+        {
+          "name": "List Machines",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/machines",
+            "description": "Cualquier autenticado (solo auth:sanctum)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Plan Files",
+      "item": [
+        {
+          "name": "List Files by Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drilling-plans/{{plan_id}}/files",
+            "description": "GET /drilling-plans/{plan}/files."
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Imports",
+      "item": [
+        {
+          "name": "Preview Import",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"holes-preview.csv\",\n  \"source_type\": \"csv\",\n  \"rows\": [\n    { \"hole_id\": \"DH-IMP-001\", \"length\": 50 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/imports/preview",
+            "description": "PreviewImportRequest. Guardar import_id de la respuesta."
+          }
+        },
+        {
+          "name": "Confirm Import",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"import_id\": {{import_id}}\n}"
+            },
+            "url": "{{base_url}}/imports/confirm",
+            "description": "ConfirmImportRequest. Requiere import_id válido de preview."
+          }
+        },
+        {
+          "name": "List Imports",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/imports",
+            "description": "Listado de importaciones CSV."
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Authorization Manual Tests",
+      "description": "12 casos de autorización. Ejecutar manualmente cambiando email/rol y re-logueando. Completar Resultado real en la planilla.",
+      "item": [
+        {
+          "name": "AUTHZ-01 Me without token",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "description": "Caso: GET /auth/me sin Authorization.\n\nResultado esperado según código: 401 (auth:sanctum).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-02 Protected without token",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/dashboard/summary",
+            "description": "Caso: endpoint protegido (dashboard) sin Bearer token.\n\nResultado esperado según código: 401 (auth:sanctum).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-03 Wrong password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"wrong-password-not-valid\"\n}"
+            },
+            "url": "{{base_url}}/auth/login",
+            "description": "Caso: login con password incorrecta.\n\nResultado esperado según código: 422 (ValidationException sobre email).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-04 Inactive user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"inactive@app.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{base_url}}/auth/login",
+            "description": "Caso: login de usuario con active=false (crear/ajustar en DB local; no viene en UserSeeder).\n\nResultado esperado según código: 422 inactive (AuthController tras attempt).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-05 Driller technical-data",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"azimuth\": 10\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/technical-data",
+            "description": "Caso: login como driller@app.test e intentar PATCH technical-data.\n\nResultado esperado según código: 403 (DrillHolePolicy::updateTechnicalData — solo admin/geologist).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-06 Driller assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_in_hole\": \"helper\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/assignments",
+            "description": "Caso: login como driller@app.test e intentar POST assignments.\n\nResultado esperado según código: 403 (assignPersonnel — solo admin/supervisor).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-07 Helper progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 0,\n  \"depth_to\": 5,\n  \"depth_current\": 5\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/progress",
+            "description": "Caso: login como helper@app.test (asignado al pozo) e intentar POST progress.\n\nResultado esperado según código: 403 (logProgress — helper no puede).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-08 Geologist technical-data",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"azimuth\": 45,\n  \"dip\": -60\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/technical-data",
+            "description": "Caso: login como geologist@app.test y PATCH technical-data.\n\nResultado esperado según código: 200 según policy updateTechnicalData.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-09 Supervisor assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{user_id}},\n  \"role_in_hole\": \"driller\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/assignments",
+            "description": "Caso: login como supervisor@app.test y POST assignments (user_id de un usuario existente del seed).\n\nResultado esperado según código: 201 según assignPersonnel.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-10 Geologist close-risk",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"risk_status\": \"closed\"\n}"
+            },
+            "url": "{{base_url}}/observations/{{observation_id}}/close-risk",
+            "description": "Caso: login como geologist@app.test e intentar close-risk.\n\nResultado esperado según código: 403 (ObservationPolicy::closeRisk — geologist no puede).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-11 Me after logout",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "description": "Caso: tras Logout exitoso, reutilizar el mismo Bearer token en GET /auth/me.\n\nResultado esperado según código: 401 (token eliminado).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "AUTHZ-12 Unassigned hole",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}",
+            "description": "Caso: login como driller@app.test y GET de un pozo al que NO está asignado (ajustar drill_hole_id).\n\nResultado esperado según código: 403 (DrillHolePolicy::view / isAssignedToHole).\nResultado real:\nPendiente de completar manualmente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Validation Manual Tests",
+      "description": "Casos de validación basados en Form Requests reales. Esperado típico: 422.",
+      "item": [
+        {
+          "name": "VAL-01 Empty login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{base_url}}/auth/login",
+            "description": "LoginRequest: email y password required.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-02 Missing length",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"azimuth\": 45,\n  \"dip\": -60\n}"
+            },
+            "url": "{{base_url}}/drill-holes",
+            "description": "StoreDrillHoleRequest: length es required.\n\nResultado esperado según código: 422 (length).\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-03 Negative depth",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": -1,\n  \"depth_to\": 5,\n  \"depth_current\": 5\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/progress",
+            "description": "StoreProgressRequest: depth_from min:0.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-04 depth_to less than depth_from",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 20,\n  \"depth_to\": 10,\n  \"depth_current\": 10\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/progress",
+            "description": "StoreProgressRequest: depth_to gte:depth_from.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-05 Invalid status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"not-a-valid-status\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/technical-data",
+            "description": "UpdateTechnicalDataRequest: status Rule::enum(HoleStatus).\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-06 Empty observation body",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"operational\",\n  \"body\": \"\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/observations",
+            "description": "StoreObservationRequest: body required|string (vacío falla).\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-07 Risk without level",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Riesgo sin nivel\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/risks",
+            "description": "StoreRiskRequest: risk_level required.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-08 Nonexistent user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 999999,\n  \"role_in_hole\": \"driller\"\n}"
+            },
+            "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/assignments",
+            "description": "StoreAssignmentRequest: user_id exists:users,id.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-09 Nonexistent import",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"import_id\": 999999\n}"
+            },
+            "url": "{{base_url}}/imports/confirm",
+            "description": "ConfirmImportRequest: import_id exists:csv_imports,id.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        },
+        {
+          "name": "VAL-10 Nonexistent plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"drilling_plan_id\": 999999,\n  \"length\": 100,\n  \"azimuth\": 45,\n  \"dip\": -60\n}"
+            },
+            "url": "{{base_url}}/drill-holes",
+            "description": "StoreDrillHoleRequest: drilling_plan_id exists:drilling_plans,id.\n\nResultado esperado según código: 422.\nResultado real:\nPendiente de completar manualmente."
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Multi-Tenant Future Tests",
+      "description": "Placeholders de contrato futuro. NO estánar como API real hasta implementar tenancy (ver docs/TENANCY_GAP_ANALYSIS.md).",
+      "item": [
+        {
+          "name": "FUT-01 List my memberships",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/memberships",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: listar membresías del usuario autenticado tras login central."
+          }
+        },
+        {
+          "name": "FUT-02 Switch active tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_id\": \"TENANT-PLACEHOLDER\"\n}"
+            },
+            "url": "{{base_url}}/__future__/multi-tenant/switch",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: seleccionar empresa activa; el tenant DEBE resolverse en token/sesión, no confiar ciegamente en el body del cliente."
+          }
+        },
+        {
+          "name": "FUT-03 Get current tenant context",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/current",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: devolver el tenant activo resuelto por el servidor."
+          }
+        },
+        {
+          "name": "FUT-04 Tenant-scoped drilling plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/drilling-plans",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: planes operativos deben vivir en DB/schema por tenant."
+          }
+        },
+        {
+          "name": "FUT-05 Tenant-scoped drill holes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/drill-holes",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: pozos aislados por tenant; IDs no deben filtrar datos de otra empresa."
+          }
+        },
+        {
+          "name": "FUT-06 Cross-tenant IDOR attempt",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/drill-holes/foreign-id",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: acceso a recurso de otro tenant debe fallar (404/403), nunca filtrar datos cruzados."
+          }
+        },
+        {
+          "name": "FUT-07 Create membership",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_email\": \"new-member@app.test\",\n  \"role\": \"geologist\"\n}"
+            },
+            "url": "{{base_url}}/__future__/multi-tenant/memberships",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: alta de membership en landlord DB."
+          }
+        },
+        {
+          "name": "FUT-08 Revoke membership",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/memberships/placeholder",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: revocación de membresía y tokens scoped al tenant."
+          }
+        },
+        {
+          "name": "FUT-09 Tenant filesystem prefix",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/files",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: archivos bajo prefijo /tenants/{id}/."
+          }
+        },
+        {
+          "name": "FUT-10 Tenant-scoped audit logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{base_url}}/__future__/multi-tenant/audit-logs",
+            "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: auditoría con aislamiento por tenant (hoy AuditLog no tiene tenant_id ni endpoints HTTP)."
+          }
+        }
+      ]
+    }
+  ]
+}

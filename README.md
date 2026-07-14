@@ -57,3 +57,94 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+---
+
+## Mining Drilling API (App-UndSurf)
+
+Backend Laravel de la **Mining Drilling App / App-UndSurf**: API REST para planes de perforación, plataformas, pozos, asignaciones, avances, observaciones/riesgos, máquinas, archivos de plan, importaciones (mock) y auditoría interna.
+
+### Requisitos
+
+- PHP ^8.2
+- Composer
+- Extensiones PHP requeridas por Laravel 12
+- Base de datos: `.env.example` declara **PostgreSQL** (`DB_CONNECTION=pgsql`). El entorno local puede diferir según el `.env` del desarrollador (no se documentan secretos).
+
+### Dependencias principales
+
+- `laravel/framework` ^12
+- `laravel/sanctum` ^4.3 (tokens de API)
+
+### Configuración local (manual)
+
+1. Copiar `.env.example` a `.env` y generar `APP_KEY`.
+2. Configurar variables de base de datos locales.
+3. Instalar dependencias y migrar/seedear en el entorno del desarrollador (fuera del alcance de la auditoría documental).
+4. Levantar el servidor **manualmente**:
+
+```bash
+php artisan serve
+```
+
+API base típica: `http://127.0.0.1:8000/api`
+
+### Variables esperadas (ver `.env.example`)
+
+- `APP_NAME`, `APP_URL`
+- `DB_*` (ejemplo pgsql)
+- `SANCTUM_STATEFUL_DOMAINS` (incluye localhost:8081 para Expo futuro)
+- Drivers de `SESSION_*`, `CACHE_STORE`, `QUEUE_CONNECTION`, `FILESYSTEM_DISK`
+
+No versionar secretos reales.
+
+### Autenticación
+
+- Sanctum personal access tokens.
+- `POST /api/auth/login` → `token` + `user`
+- `GET /api/auth/me`, `POST /api/auth/logout` (protegidos)
+- Header: `Authorization: Bearer {token}`
+
+### Roles existentes (`users.role`)
+
+`admin`, `supervisor`, `geologist`, `driller`, `helper`, `geotechnical`
+
+El rol `geotechnical` es MVP y puede revisarse más adelante.
+
+Usuarios de seeder (solo desarrollo local): `*@app.test` (ver `database/seeders/UserSeeder.php`).
+
+### Tenancy
+
+**Estado actual: single-tenant (sin multi-tenancy).**  
+No hay `tenant_id` / companies / memberships. Ver `docs/TENANCY_GAP_ANALYSIS.md`.
+
+### Documentación de auditoría
+
+| Documento | Contenido |
+| --------- | --------- |
+| [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md) | Rutas y contratos |
+| [docs/API_DOMAIN_MODEL.md](docs/API_DOMAIN_MODEL.md) | Modelos y relaciones |
+| [docs/API_PERMISSIONS_MATRIX.md](docs/API_PERMISSIONS_MATRIX.md) | Roles y policies |
+| [docs/API_AUTH.md](docs/API_AUTH.md) | Sanctum |
+| [docs/API_SECURITY_AUDIT.md](docs/API_SECURITY_AUDIT.md) | Seguridad estática |
+| [docs/TENANCY_GAP_ANALYSIS.md](docs/TENANCY_GAP_ANALYSIS.md) | Multi-tenant gap |
+| [docs/FRONTEND_BACKEND_CONTRACT_GAPS.md](docs/FRONTEND_BACKEND_CONTRACT_GAPS.md) | Gaps Expo |
+| [docs/POSTMAN_GUIDE.md](docs/POSTMAN_GUIDE.md) | Cómo probar en Postman |
+| [docs/POSTMAN_MANUAL_TEST_RESULTS.md](docs/POSTMAN_MANUAL_TEST_RESULTS.md) | Planilla de resultados |
+| [docs/API_AUDIT_CHANGELOG_2026-07-14.md](docs/API_AUDIT_CHANGELOG_2026-07-14.md) | Changelog documental |
+
+### Postman
+
+- Colección: `postman/Mining-Drilling-API.postman_collection.json`
+- Environment ejemplo: `postman/Mining-Drilling-Local.postman_environment.example.json`
+
+> **Antes de ejecutar requests POST, PATCH o DELETE, confirmar que `base_url` apunta a una API local o de testing.**
+
+Las pruebas automatizadas de Collection Runner / smoke **no** forman parte de la aceptación de la auditoría documental. La validación manual queda a cargo del responsable del proyecto.
+
+### Advertencia de seguridad
+
+- No desplegar con `APP_DEBUG=true` en producción.
+- No confiar en ocultar botones del frontend como control de autorización.
+- Tokens Sanctum: revisar expiración antes de producción (`config/sanctum.php`).
+- Frontend Expo **aún no está conectado** como cliente oficial de esta API.
