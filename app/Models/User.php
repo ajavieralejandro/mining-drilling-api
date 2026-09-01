@@ -40,6 +40,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(Membership::class);
+    }
+
+    public function activeMembership(): ?Membership
+    {
+        return $this->memberships()->where('status', Membership::STATUS_ACTIVE)->first();
+    }
+
     public function assignments(): HasMany
     {
         return $this->hasMany(DrillHoleAssignment::class);
