@@ -24,6 +24,7 @@ class CommandDispatcher
         string $actorType = 'demo',
         ?string $actorId = null,
         ?int $timeoutSeconds = null,
+        ?string $correlationId = null,
     ): ConnectorCommand {
         if (! in_array($op, config('connector.supported_ops', []), true)) {
             throw new RuntimeException('UNSUPPORTED_OP');
@@ -35,7 +36,7 @@ class CommandDispatcher
 
         $timeout = $timeoutSeconds ?? (int) config('connector.demo_command_timeout_seconds', 10);
         $requestId = 'req_'.(string) Str::ulid();
-        $correlationId = 'cor_'.(string) Str::ulid();
+        $correlationId ??= 'cor_'.(string) Str::ulid();
 
         $command = ConnectorCommand::create([
             'id' => (string) Str::ulid(),

@@ -16,7 +16,7 @@ use RuntimeException;
  */
 trait GatewayCommandTrait
 {
-    private function resolveConnector(string $tenantId): Connector
+    private function resolveConnector(string $tenantId, ?string $correlationId = null): Connector
     {
         $connector = Connector::query()
             ->where('tenant_id', $tenantId)
@@ -24,7 +24,7 @@ trait GatewayCommandTrait
             ->first();
 
         if ($connector === null) {
-            throw new GatewayException('CONNECTOR_OFFLINE', 'No connector registered for this tenant', 503);
+            throw new GatewayException('CONNECTOR_OFFLINE', 'No connector registered for this tenant', 503, null, $correlationId);
         }
 
         return $connector;
@@ -39,6 +39,7 @@ trait GatewayCommandTrait
         string $op,
         array $payload,
         int $userId,
+        ?string $correlationId = null,
     ): ConnectorCommand {
         try {
             $command = $dispatcher->dispatch(
@@ -47,6 +48,7 @@ trait GatewayCommandTrait
                 payload: $payload,
                 actorType: 'user',
                 actorId: (string) $userId,
+                correlationId: $correlationId,
             );
         } catch (RuntimeException $e) {
             $code = $e->getMessage();
@@ -56,7 +58,7 @@ trait GatewayCommandTrait
                 default => 500,
             };
 
-            throw new GatewayException($code, 'Gateway dispatch failed', $status);
+            throw new GatewayException($code, 'Gateway dispatch failed', $status, null, $correlationId);
         }
 
         return $dispatcher->waitForResult($command);

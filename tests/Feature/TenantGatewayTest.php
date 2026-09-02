@@ -9,6 +9,7 @@ use App\Models\ConnectorEnrollmentToken;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Connector\CommandDispatcher;
 use App\Support\TokenHasher;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -114,6 +115,117 @@ class TenantGatewayTest extends TestCase
         $this->getJson('/api/tenant/holes')
             ->assertStatus(503)
             ->assertJsonPath('error.code', 'CONNECTOR_OFFLINE');
+    }
+
+    /**
+     * Fase A/B/C (P1 Paso 2, correlation): "Generación" + proof that the
+     * canonical id survives an error that happens *before* any
+     * ConnectorCommand exists (CONNECTOR_OFFLINE is thrown by
+     * resolveConnector(), ahead of dispatch()).
+     */
+    public function test_correlation_id_is_generated_when_client_sends_none(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/tenant/holes')
+            ->assertStatus(503)
+            ->assertJsonPath('error.code', 'CONNECTOR_OFFLINE');
+
+        $correlationId = $response->json('correlation_id');
+
+        $this->assertIsString($correlationId);
+        $this->assertMatchesRegularExpression('/^cor_/', $correlationId);
+        // No command was ever created for this failure, so there is
+        // nothing to look up a request_id from — it must stay null rather
+        // than being fabricated.
+        $this->assertNull($response->json('request_id'));
+    }
+
+    /**
+     * "Propagación": a client-supplied X-Correlation-Id reaches the actual
+     * ConnectorCommand row — the same row PollController hands to the
+     * Connector — and the same value comes back on the HTTP error response
+     * once the command times out (proves the id also survives a failure
+     * that happens *during* the wait for a result).
+     */
+    public function test_client_supplied_correlation_id_is_propagated_to_connector_command(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $response = $this->withHeaders(['X-Correlation-Id' => 'cor_custom_abc123'])
+            ->getJson('/api/tenant/holes')
+            ->assertStatus(504)
+            ->assertJsonPath('error.code', 'TIMEOUT')
+            ->assertJsonPath('correlation_id', 'cor_custom_abc123');
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame('cor_custom_abc123', $command->correlation_id);
+        $this->assertSame($command->request_id, $response->json('request_id'));
+    }
+
+    /**
+     * Fase B validation rule: an entrant id that is not a bounded, safe
+     * opaque token must never be trusted as-is — it is replaced by a
+     * server-generated one instead of being rejected outright.
+     */
+    public function test_invalid_client_correlation_id_is_replaced_with_generated_one(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        Sanctum::actingAs($user);
+
+        $tooLong = str_repeat('a', 65);
+
+        $response = $this->withHeaders(['X-Correlation-Id' => $tooLong])
+            ->getJson('/api/tenant/holes')
+            ->assertStatus(503);
+
+        $this->assertNotSame($tooLong, $response->json('correlation_id'));
+        $this->assertMatchesRegularExpression('/^cor_/', $response->json('correlation_id'));
+    }
+
+    /**
+     * "Retorno": once a Connector completes a command, the result carries
+     * exactly the same correlation_id it was dispatched with — proven at
+     * the CommandDispatcher level (the layer TenantHoleController's
+     * happy path relies on), since a real completion requires a live
+     * Connector process racing against the same blocking HTTP request,
+     * which is out of reach for an in-process PHPUnit run (see the class
+     * docblock above and docs/testing/distributed-data-demo.md for the
+     * live proof of the 200 path).
+     */
+    public function test_dispatcher_preserves_correlation_id_through_completed_result(): void
+    {
+        [, $tenant] = $this->makeUserWithMembership();
+        $connector = $this->onlineConnectorFor($tenant);
+
+        $dispatcher = app(CommandDispatcher::class);
+
+        $command = $dispatcher->dispatch(
+            connector: $connector,
+            op: 'drill_holes.list@1',
+            payload: ['limit' => 5],
+            actorType: 'user',
+            actorId: '1',
+            correlationId: 'cor_roundtrip_test',
+        );
+
+        // Simulate the Connector completing it, exactly as
+        // ResultController would persist it.
+        $command->forceFill([
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => ['items' => [['id' => '1', 'code' => 'H-1', 'status' => 'in_progress']]],
+            'completed_at' => now(),
+        ])->save();
+
+        $result = $dispatcher->waitForResult($command);
+
+        $this->assertSame(ConnectorCommand::STATUS_COMPLETED, $result->status);
+        $this->assertSame('cor_roundtrip_test', $result->correlation_id);
+        $this->assertNotNull($result->request_id);
     }
 
     /**

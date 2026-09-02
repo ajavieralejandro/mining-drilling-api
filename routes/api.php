@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
+use App\Http\Middleware\ResolveRequestCorrelation;
 use App\Http\Middleware\ResolveTenantContext;
 use Illuminate\Support\Facades\Route;
 
@@ -86,7 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Data Gateway. tenant_id is never read from the request — ResolveTenantContext
 // resolves it server-side from the authenticated user's active membership.
 // See docs/sprints/distributed-data-vertical-slice.md.
-Route::middleware(['auth:sanctum', ResolveTenantContext::class])->prefix('tenant')->group(function () {
+Route::middleware(['auth:sanctum', ResolveRequestCorrelation::class, ResolveTenantContext::class])->prefix('tenant')->group(function () {
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
 });

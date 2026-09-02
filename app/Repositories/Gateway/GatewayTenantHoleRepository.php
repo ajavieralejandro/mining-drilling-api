@@ -12,9 +12,9 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 
     public function __construct(private readonly CommandDispatcher $dispatcher) {}
 
-    public function list(TenantContext $context, int $limit = 10): array
+    public function list(TenantContext $context, string $correlationId, int $limit = 10): array
     {
-        $connector = $this->resolveConnector($context->tenantId);
+        $connector = $this->resolveConnector($context->tenantId, $correlationId);
 
         $command = $this->dispatchAndWait(
             $this->dispatcher,
@@ -22,16 +22,21 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
             'drill_holes.list@1',
             ['limit' => $limit],
             $context->userId,
+            $correlationId,
         );
 
         $this->assertOk($command);
 
-        return $command->result_json['items'] ?? [];
+        return [
+            'items' => $command->result_json['items'] ?? [],
+            'request_id' => $command->request_id,
+            'correlation_id' => $command->correlation_id,
+        ];
     }
 
-    public function find(TenantContext $context, string $holeId): array
+    public function find(TenantContext $context, string $correlationId, string $holeId): array
     {
-        $connector = $this->resolveConnector($context->tenantId);
+        $connector = $this->resolveConnector($context->tenantId, $correlationId);
 
         $command = $this->dispatchAndWait(
             $this->dispatcher,
@@ -39,10 +44,15 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
             'drill_holes.get@1',
             ['id' => $holeId],
             $context->userId,
+            $correlationId,
         );
 
         $this->assertOk($command);
 
-        return $command->result_json['item'] ?? [];
+        return [
+            'item' => $command->result_json['item'] ?? [],
+            'request_id' => $command->request_id,
+            'correlation_id' => $command->correlation_id,
+        ];
     }
 }

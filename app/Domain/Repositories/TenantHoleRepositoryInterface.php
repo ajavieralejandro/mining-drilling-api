@@ -17,17 +17,22 @@ use App\Support\TenantContext;
 interface TenantHoleRepositoryInterface
 {
     /**
-     * @return array<int, array{id: string, code: string, status: string}>
+     * @param  string  $correlationId  Canonical correlation id for this
+     *         HTTP request (see App\Support\RequestCorrelation) — carried
+     *         through to the Connector dispatch and back so it survives
+     *         even a failure that happens before a command exists.
+     * @return array{items: array<int, array{id: string, code: string, status: string}>, request_id: ?string, correlation_id: string}
      */
-    public function list(TenantContext $context, int $limit = 10): array;
+    public function list(TenantContext $context, string $correlationId, int $limit = 10): array;
 
     /**
-     * @return array{id: string, code: string, status: string}
+     * @param  string  $correlationId  See list().
+     * @return array{item: array{id: string, code: string, status: string}, request_id: ?string, correlation_id: string}
      *
      * @throws \App\Support\GatewayException with code NOT_FOUND (HTTP 404)
      *         when $holeId does not exist in this tenant's own database —
      *         including when it exists under a colliding id in a *different*
      *         tenant's database, which this repository can never see.
      */
-    public function find(TenantContext $context, string $holeId): array;
+    public function find(TenantContext $context, string $correlationId, string $holeId): array;
 }
