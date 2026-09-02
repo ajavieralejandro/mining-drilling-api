@@ -229,6 +229,139 @@ class TenantGatewayTest extends TestCase
     }
 
     /**
+     * P1 Paso 3 — Test 1 (baseline): with only tenant A in play, and no
+     * spoofing attempted, the dispatched command targets tenant A's
+     * connector. Confirms the happy (dispatch) path still works after
+     * Paso 1/2 before piling adversarial input on top of it.
+     */
+    public function test_baseline_dispatch_targets_the_authenticated_users_own_tenant(): void
+    {
+        [$userA, $tenantA] = $this->makeUserWithMembership();
+        $connectorA = $this->onlineConnectorFor($tenantA);
+        Sanctum::actingAs($userA);
+
+        $this->getJson('/api/tenant/holes')->assertStatus(504);
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame($tenantA->id, $command->tenant_id);
+        $this->assertSame($connectorA->id, $command->connector_id);
+    }
+
+    /**
+     * P1 Paso 3 — Test 2 (query spoofing): tenant A user sends tenant B's
+     * id via query string while BOTH connectors are online, so a leak
+     * would be observable as B's connector receiving the command. Asserts
+     * directly on the ConnectorCommand row, not just the HTTP status.
+     */
+    public function test_query_string_tenant_spoofing_does_not_change_dispatched_tenant(): void
+    {
+        [$userA, $tenantA, $connectorA, , $connectorB] = $this->setUpTenantAWithSiblingTenantB();
+        Sanctum::actingAs($userA);
+
+        $this->getJson('/api/tenant/holes?tenant_id='.$connectorB->tenant_id.'&organization_id='.$connectorB->tenant_id)
+            ->assertStatus(504);
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame($tenantA->id, $command->tenant_id);
+        $this->assertSame($connectorA->id, $command->connector_id);
+        $this->assertNotSame($connectorB->id, $command->connector_id);
+    }
+
+    /**
+     * P1 Paso 3 — Test 3 (body spoofing): GET /api/tenant/holes never
+     * calls Request::input()/all() (only ::query('limit')) — verified by
+     * reading TenantHoleController before writing this test — so a JSON
+     * body is not a real attack surface here. This test exercises that
+     * real, current code path end-to-end anyway (an actual JSON body is
+     * sent on the GET) rather than asserting it from reading the source,
+     * confirming the body is inert in practice too.
+     */
+    public function test_json_body_tenant_spoofing_does_not_change_dispatched_tenant(): void
+    {
+        [$userA, $tenantA, $connectorA, , $connectorB] = $this->setUpTenantAWithSiblingTenantB();
+        Sanctum::actingAs($userA);
+
+        $this->json('GET', '/api/tenant/holes', ['tenant_id' => $connectorB->tenant_id])
+            ->assertStatus(504);
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame($tenantA->id, $command->tenant_id);
+        $this->assertSame($connectorA->id, $command->connector_id);
+    }
+
+    /**
+     * P1 Paso 3 — Test 4 (header spoofing): no header-based tenant
+     * selector exists anywhere in the codebase (confirmed by a global
+     * grep for X-Tenant/Tenant-Id/X-Organization/Organization-Id before
+     * writing this test) — so this proves the negative concretely: three
+     * plausible header names, all pointing at tenant B, have zero effect.
+     */
+    public function test_header_tenant_spoofing_does_not_change_dispatched_tenant(): void
+    {
+        [$userA, $tenantA, $connectorA, , $connectorB] = $this->setUpTenantAWithSiblingTenantB();
+        Sanctum::actingAs($userA);
+
+        $this->withHeaders([
+            'X-Tenant-Id' => $connectorB->tenant_id,
+            'Tenant-Id' => $connectorB->tenant_id,
+            'X-Organization-Id' => $connectorB->tenant_id,
+        ])->getJson('/api/tenant/holes')->assertStatus(504);
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame($tenantA->id, $command->tenant_id);
+        $this->assertSame($connectorA->id, $command->connector_id);
+    }
+
+    /**
+     * P1 Paso 3 — Test 5 (most important): every spoofing surface at once
+     * — query, JSON body, and headers, all naming tenant B and even B's
+     * connector_id directly — while both tenants have an online
+     * connector. Inspects the actual ConnectorCommand row Laravel created
+     * (the row PollController would hand to a real Connector process),
+     * not merely the HTTP status: it must name tenant A / connector A and
+     * nothing belonging to B, in every field.
+     */
+    public function test_combined_spoofing_across_every_surface_still_targets_only_tenant_a(): void
+    {
+        [$userA, $tenantA, $connectorA, $tenantB, $connectorB] = $this->setUpTenantAWithSiblingTenantB();
+        Sanctum::actingAs($userA);
+
+        $this->withHeaders([
+            'X-Tenant-Id' => $tenantB->id,
+            'Tenant-Id' => $tenantB->id,
+            'X-Organization-Id' => $tenantB->id,
+        ])->json('GET', '/api/tenant/holes?tenant_id='.$tenantB->id.'&connector_id='.$connectorB->id, [
+            'tenant_id' => $tenantB->id,
+            'connector_id' => $connectorB->id,
+        ])->assertStatus(504);
+
+        $command = ConnectorCommand::query()->where('op', 'drill_holes.list@1')->sole();
+
+        $this->assertSame($tenantA->id, $command->tenant_id);
+        $this->assertSame($connectorA->id, $command->connector_id);
+        $this->assertNotSame($tenantB->id, $command->tenant_id);
+        $this->assertNotSame($connectorB->id, $command->connector_id);
+    }
+
+    /**
+     * @return array{0: User, 1: Tenant, 2: Connector, 3: Tenant, 4: Connector}
+     */
+    private function setUpTenantAWithSiblingTenantB(): array
+    {
+        [$userA, $tenantA] = $this->makeUserWithMembership();
+        $connectorA = $this->onlineConnectorFor($tenantA);
+
+        $tenantB = Tenant::create(['id' => (string) Str::ulid(), 'name' => 'Minera B']);
+        $connectorB = $this->onlineConnectorFor($tenantB);
+
+        return [$userA, $tenantA, $connectorA, $tenantB, $connectorB];
+    }
+
+    /**
      * @return array{0: User, 1: Tenant}
      */
     private function makeUserWithMembership(string $status = Membership::STATUS_ACTIVE): array
