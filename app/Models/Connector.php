@@ -31,6 +31,10 @@ class Connector extends Model
         'last_seen_at',
     ];
 
+    protected $hidden = [
+        'connector_token_hash',
+    ];
+
     protected function casts(): array
     {
         return [

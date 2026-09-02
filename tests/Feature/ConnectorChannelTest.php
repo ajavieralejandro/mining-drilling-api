@@ -204,6 +204,112 @@ class ConnectorChannelTest extends TestCase
         ])->assertUnauthorized()->assertJsonPath('error.code', 'UNAUTHORIZED');
     }
 
+    /**
+     * P1 Paso 4 — Fase C.3: an active connector's own bearer is rejected
+     * once it is replaced by an unrelated, well-formed string — proves
+     * AuthenticateConnector actually checks the token value (hash lookup),
+     * not merely its presence.
+     */
+    public function test_connector_bearer_wrong_token_is_rejected(): void
+    {
+        $ctx = $this->onlineConnector();
+
+        $this->withToken('wrong-token-that-is-not-registered')
+            ->postJson('/api/connector/v1/heartbeat', [
+                'protocol_version' => '1.0',
+                'connector_id' => $ctx['connector_id'],
+                'session_id' => $ctx['session_id'],
+                'status' => 'ok',
+            ])
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHORIZED');
+    }
+
+    /**
+     * P1 Paso 4 — Fase C.4: "Authorization: Bearer " with nothing after
+     * it. Request::bearerToken() returns '' here (not null), so this
+     * exercises AuthenticateConnector's separate empty-string branch,
+     * not just the missing-header one already covered above.
+     */
+    public function test_connector_bearer_empty_is_rejected(): void
+    {
+        $this->withHeaders(['Authorization' => 'Bearer '])
+            ->postJson('/api/connector/v1/heartbeat', [
+                'protocol_version' => '1.0',
+                'connector_id' => 'x',
+                'session_id' => 'y',
+            ])
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHORIZED');
+    }
+
+    /**
+     * P1 Paso 4 — Fase C.5: a differently-schemed Authorization header
+     * (Basic instead of Bearer) must not be treated as a token to look up
+     * — Request::bearerToken() returns null for it, same as a missing
+     * header, and AuthenticateConnector rejects it the same way.
+     */
+    public function test_connector_bearer_malformed_scheme_is_rejected(): void
+    {
+        $this->withHeaders(['Authorization' => 'Basic '.base64_encode('user:pass')])
+            ->postJson('/api/connector/v1/heartbeat', [
+                'protocol_version' => '1.0',
+                'connector_id' => 'x',
+                'session_id' => 'y',
+            ])
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHORIZED');
+    }
+
+    /**
+     * P1 Paso 4: confirms AuthenticateConnector actually protects /poll
+     * and /results too, not just /heartbeat (which every other bearer
+     * test above exercises) — the three sensitive endpoints P0's holes
+     * flow depends on.
+     */
+    public function test_connector_bearer_required_on_poll_and_results_too(): void
+    {
+        $ctx = $this->onlineConnector();
+
+        // onlineConnector() authenticates internally to reach STATUS_ONLINE
+        // (via heartbeat), which leaves withToken()'s Authorization header
+        // as this test's default for every subsequent call — drop it so
+        // these two requests are genuinely unauthenticated.
+        $this->withoutToken();
+
+        $this->postJson('/api/connector/v1/poll', [
+            'protocol_version' => '1.0',
+            'connector_id' => $ctx['connector_id'],
+            'session_id' => $ctx['session_id'],
+        ])->assertUnauthorized()->assertJsonPath('error.code', 'UNAUTHORIZED');
+
+        $this->postJson('/api/connector/v1/results', [
+            'protocol_version' => '1.0',
+            'request_id' => 'req_whatever',
+            'correlation_id' => 'cor_whatever',
+            'connector_id' => $ctx['connector_id'],
+            'tenant_id' => $ctx['tenant_id'],
+            'op' => 'drill_holes.list@1',
+            'status' => 'ok',
+        ])->assertUnauthorized()->assertJsonPath('error.code', 'UNAUTHORIZED');
+    }
+
+    /**
+     * P1 Paso 4 — Fase B: the secret must never appear in a response.
+     * Only its SHA-256 (connector_token_hash) is ever persisted, and even
+     * that must not serialize out of the model now that Connector::$hidden
+     * covers it.
+     */
+    public function test_connector_token_hash_never_serializes(): void
+    {
+        $ctx = $this->onlineConnector();
+
+        $connector = Connector::query()->findOrFail($ctx['connector_id']);
+
+        $this->assertArrayNotHasKey('connector_token_hash', $connector->toArray());
+        $this->assertStringNotContainsString('connector_token_hash', $connector->toJson());
+    }
+
     public function test_control_plane_never_persists_client_dsn_canary(): void
     {
         $canary = 'postgres://CANARY_SECRET_USER:CANARY_SECRET_PASS@127.0.0.1:5432/client_db';

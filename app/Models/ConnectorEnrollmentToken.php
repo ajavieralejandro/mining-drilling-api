@@ -20,6 +20,10 @@ class ConnectorEnrollmentToken extends Model
         'created_connector_id',
     ];
 
+    protected $hidden = [
+        'token_hash',
+    ];
+
     protected function casts(): array
     {
         return [
