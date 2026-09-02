@@ -10,6 +10,15 @@ class AuthenticateDemoInternal
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (! app()->environment(['local', 'testing'])) {
+            return response()->json([
+                'error' => [
+                    'code' => 'NOT_FOUND',
+                    'message' => 'Not found',
+                ],
+            ], 404);
+        }
+
         $expected = config('connector.demo_internal_token');
 
         if ($expected === null || $expected === '') {

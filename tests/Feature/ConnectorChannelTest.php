@@ -179,6 +179,22 @@ class ConnectorChannelTest extends TestCase
         ]);
     }
 
+    public function test_demo_list_holes_not_available_outside_local_or_testing(): void
+    {
+        app()->instance('env', 'production');
+
+        try {
+            $response = $this->withToken($this->demoToken)->postJson('/api/internal/demo/list-holes', [
+                'limit' => 10,
+            ]);
+
+            $response->assertStatus(404)
+                ->assertJsonPath('error.code', 'NOT_FOUND');
+        } finally {
+            app()->instance('env', 'testing');
+        }
+    }
+
     public function test_unauthorized_connector_bearer(): void
     {
         $this->postJson('/api/connector/v1/heartbeat', [
