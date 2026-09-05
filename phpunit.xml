@@ -18,8 +18,8 @@
         </include>
     </source>
     <php>
+        <!-- APP_KEY is not versioned. Tests\TestCase generates an ephemeral key unless the environment already provides one. -->
         <env name="APP_ENV" value="testing"/>
-        <env name="APP_KEY" value="base64:2fl+KtvkdphvQyVjV9nQ0pQ8kYQ0xqH0mG0vJ0aB0cD="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
