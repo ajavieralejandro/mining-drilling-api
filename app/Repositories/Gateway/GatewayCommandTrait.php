@@ -52,13 +52,18 @@ trait GatewayCommandTrait
             );
         } catch (RuntimeException $e) {
             $code = $e->getMessage();
-            $status = match ($code) {
-                'CONNECTOR_OFFLINE' => 503,
-                'UNSUPPORTED_OP' => 422,
-                default => 500,
-            };
 
-            throw new GatewayException($code, 'Gateway dispatch failed', $status, null, $correlationId);
+            if ($code === 'CONNECTOR_OFFLINE') {
+                throw new GatewayException('CONNECTOR_OFFLINE', 'Gateway dispatch failed', 503, null, $correlationId);
+            }
+
+            if ($code === 'UNSUPPORTED_OP') {
+                throw new GatewayException('UNSUPPORTED_OP', 'Gateway dispatch failed', 422, null, $correlationId);
+            }
+
+            report($e);
+
+            throw new GatewayException('INTERNAL_ERROR', 'Internal server error.', 500, null, $correlationId);
         }
 
         return $dispatcher->waitForResult($command);

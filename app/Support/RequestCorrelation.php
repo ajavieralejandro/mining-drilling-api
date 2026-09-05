@@ -16,4 +16,14 @@ namespace App\Support;
 final class RequestCorrelation
 {
     public function __construct(public readonly string $id) {}
+
+    /**
+     * The id bound by ResolveRequestCorrelation for this request, or null
+     * when that middleware has not run (e.g. connector channel, or an
+     * error that happens before the tenant group).
+     */
+    public static function currentId(): ?string
+    {
+        return app()->bound(self::class) ? app(self::class)->id : null;
+    }
 }

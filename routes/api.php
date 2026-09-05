@@ -87,7 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Data Gateway. tenant_id is never read from the request — ResolveTenantContext
 // resolves it server-side from the authenticated user's active membership.
 // See docs/sprints/distributed-data-vertical-slice.md.
-Route::middleware(['auth:sanctum', ResolveRequestCorrelation::class, ResolveTenantContext::class])->prefix('tenant')->group(function () {
+Route::middleware([ResolveRequestCorrelation::class, 'auth:sanctum', ResolveTenantContext::class])->prefix('tenant')->group(function () {
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
 });

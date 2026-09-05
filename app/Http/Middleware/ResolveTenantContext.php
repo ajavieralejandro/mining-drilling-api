@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Membership;
+use App\Support\GatewayException;
+use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -24,12 +26,13 @@ class ResolveTenantContext
         $membership = $user?->activeMembership();
 
         if ($membership === null) {
-            return response()->json([
-                'error' => [
-                    'code' => 'NO_ACTIVE_MEMBERSHIP',
-                    'message' => 'This user has no active tenant membership',
-                ],
-            ], 403);
+            return (new GatewayException(
+                'NO_ACTIVE_MEMBERSHIP',
+                'This user has no active tenant membership',
+                403,
+                null,
+                RequestCorrelation::currentId(),
+            ))->toResponse();
         }
 
         app()->instance(TenantContext::class, new TenantContext(

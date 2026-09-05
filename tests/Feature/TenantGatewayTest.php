@@ -348,6 +348,200 @@ class TenantGatewayTest extends TestCase
     }
 
     /**
+     * P1 Fase 2 — A: unauthenticated JSON Accept still uses the Gateway
+     * error contract, not Sanctum's bare {message: Unauthenticated.}.
+     */
+    public function test_unauthenticated_holes_request_with_accept_json_returns_401(): void
+    {
+        $this->getJson('/api/tenant/holes')
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED')
+            ->assertJsonPath('request_id', null);
+    }
+
+    /**
+     * P1 Fase 2 — B: missing Accept must not redirect to route('login')
+     * or render the debug HTML page (previously HTTP 500 text/html).
+     */
+    public function test_unauthenticated_holes_request_without_accept_still_returns_json_401(): void
+    {
+        $response = $this->get('/api/tenant/holes');
+
+        $response->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED');
+
+        $this->assertStringContainsString('application/json', (string) $response->headers->get('content-type'));
+        $body = strtolower($response->getContent());
+        $this->assertStringNotContainsString('<html', $body);
+        $this->assertStringNotContainsString('doctype', $body);
+    }
+
+    /**
+     * P1 Fase 2 — C: ResolveRequestCorrelation now runs before auth, so a
+     * 401 on /api/tenant/holes can still echo a valid client correlation id.
+     * request_id stays null — no command exists yet.
+     */
+    public function test_unauthenticated_holes_request_preserves_correlation_id(): void
+    {
+        $this->withHeaders(['X-Correlation-Id' => 'cor_unauth_401'])
+            ->getJson('/api/tenant/holes')
+            ->assertUnauthorized()
+            ->assertJsonPath('error.code', 'UNAUTHENTICATED')
+            ->assertJsonPath('correlation_id', 'cor_unauth_401')
+            ->assertJsonPath('request_id', null);
+    }
+
+    /**
+     * P1 Fase 2 — D: NO_ACTIVE_MEMBERSHIP now uses GatewayException, so the
+     * correlation id resolved before auth is preserved on 403.
+     */
+    public function test_no_membership_error_includes_correlation_id(): void
+    {
+        $user = User::factory()->create(['role' => UserRole::Supervisor, 'active' => true]);
+        Sanctum::actingAs($user);
+
+        $this->withHeaders(['X-Correlation-Id' => 'cor_no_membership'])
+            ->getJson('/api/tenant/holes')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'NO_ACTIVE_MEMBERSHIP')
+            ->assertJsonPath('correlation_id', 'cor_no_membership')
+            ->assertJsonPath('request_id', null);
+    }
+
+    /**
+     * P1 Fase 2 — G: a Connector result with status=failed / ADAPTER_ERROR
+     * surfaces as 502 on the user request. Mapping for NOT_FOUND (404) and
+     * INVALID_PAYLOAD (422) is unchanged and covered next to this.
+     */
+    public function test_connector_failed_result_returns_502(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_FAILED,
+            'error_code' => 'ADAPTER_ERROR',
+            'result_json' => null,
+        ]));
+
+        $this->getJson('/api/tenant/holes')
+            ->assertStatus(502)
+            ->assertJsonPath('error.code', 'ADAPTER_ERROR')
+            ->assertJsonPath('request_id', 'req_fake_result');
+    }
+
+    public function test_connector_not_found_result_still_returns_404(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_FAILED,
+            'error_code' => 'NOT_FOUND',
+            'result_json' => null,
+        ]));
+
+        $this->getJson('/api/tenant/holes')
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'NOT_FOUND');
+    }
+
+    /**
+     * P1 Fase 2 — H: an unexpected RuntimeException (e.g. SQL) must not
+     * leak into error.code / the JSON body. Laravel still receives it via
+     * report(); the client only sees INTERNAL_ERROR.
+     */
+    public function test_unexpected_dispatch_exception_returns_internal_error_without_sql(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $dispatcher = \Mockery::mock(CommandDispatcher::class);
+        $dispatcher->shouldReceive('dispatch')->once()->andThrow(new \RuntimeException(
+            'SQLSTATE[23000]: Integrity constraint violation: insert into connector_commands (id) values (1) /var/www/app'
+        ));
+        $dispatcher->shouldReceive('waitForResult')->never();
+        $this->app->instance(CommandDispatcher::class, $dispatcher);
+
+        $response = $this->withHeaders(['X-Correlation-Id' => 'cor_unexpected'])
+            ->getJson('/api/tenant/holes');
+
+        $response->assertStatus(500)
+            ->assertJsonPath('error.code', 'INTERNAL_ERROR')
+            ->assertJsonPath('correlation_id', 'cor_unexpected')
+            ->assertJsonPath('request_id', null);
+
+        $body = strtolower($response->getContent());
+        $this->assertStringNotContainsString('sql', $body);
+        $this->assertStringNotContainsString('select', $body);
+        $this->assertStringNotContainsString('insert', $body);
+        $this->assertStringNotContainsString('table', $body);
+        $this->assertStringNotContainsString('database', $body);
+        $this->assertStringNotContainsString('exception', $body);
+        $this->assertStringNotContainsString('stack', $body);
+        $this->assertStringNotContainsString('/var/www', $body);
+        $this->assertStringNotContainsString('connector_commands', $body);
+    }
+
+    /**
+     * P1 Fase 2 — I: status=ok with a structurally invalid list payload
+     * must not collapse to 200 {data: []}.
+     */
+    public function test_completed_result_with_invalid_shape_returns_502(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => ['not_items' => true],
+        ]));
+
+        $this->getJson('/api/tenant/holes')
+            ->assertStatus(502)
+            ->assertJsonPath('error.code', 'INVALID_RESULT')
+            ->assertJsonPath('request_id', 'req_fake_result');
+    }
+
+    /**
+     * P1 Fase 2 — J: in-process happy path for drill_holes.list@1. A live
+     * Connector process cannot answer inside this PHPUnit worker (see class
+     * docblock); the dispatcher is stubbed at waitForResult with the same
+     * payload shape the Go adapter returns, so the controller contract is
+     * proven: 200, data, request_id, correlation_id.
+     */
+    public function test_completed_list_result_returns_200_with_items(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'request_id' => 'req_happy_path',
+            'correlation_id' => 'cor_happy_path',
+            'result_json' => [
+                'items' => [
+                    ['id' => '1001', 'code' => 'H-1', 'status' => 'in_progress'],
+                ],
+            ],
+        ]));
+
+        $this->withHeaders(['X-Correlation-Id' => 'cor_happy_path'])
+            ->getJson('/api/tenant/holes')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', '1001')
+            ->assertJsonPath('data.0.code', 'H-1')
+            ->assertJsonPath('data.0.status', 'in_progress')
+            ->assertJsonPath('request_id', 'req_happy_path')
+            ->assertJsonPath('correlation_id', 'cor_happy_path');
+    }
+
+    /**
      * @return array{0: User, 1: Tenant, 2: Connector, 3: Tenant, 4: Connector}
      */
     private function setUpTenantAWithSiblingTenantB(): array
@@ -421,5 +615,34 @@ class TenantGatewayTest extends TestCase
         ])->assertOk();
 
         return Connector::query()->findOrFail($connectorId);
+    }
+
+    private function fakeDispatcherReturning(ConnectorCommand $command): void
+    {
+        $dispatcher = \Mockery::mock(CommandDispatcher::class);
+        $dispatcher->shouldReceive('dispatch')->once()->andReturn($command);
+        $dispatcher->shouldReceive('waitForResult')->once()->andReturn($command);
+        $this->app->instance(CommandDispatcher::class, $dispatcher);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function fakeCommand(array $overrides = []): ConnectorCommand
+    {
+        $command = new ConnectorCommand;
+        $command->forceFill(array_merge([
+            'id' => (string) Str::ulid(),
+            'request_id' => 'req_fake_result',
+            'correlation_id' => 'cor_fake_result',
+            'tenant_id' => (string) Str::ulid(),
+            'connector_id' => (string) Str::ulid(),
+            'op' => 'drill_holes.list@1',
+            'payload_json' => ['limit' => 10],
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => ['items' => []],
+        ], $overrides));
+
+        return $command;
     }
 }
