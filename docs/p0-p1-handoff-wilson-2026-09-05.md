@@ -253,3 +253,53 @@ Tratarlas aparte, con el socio, cuando toque:
 2. `php artisan test` y `go test ./...` como smoke de suite.
 3. Gate adversarial + smoke con Connector y Postgres reales.
 4. Recién entonces deploy. No antes.
+
+---
+
+## Gate lunes 2026-09-07 (pre-deploy) — DEPLOY NO EJECUTADO
+
+Verificación real del repositorio y de las suites. El working tree no se modificó. El stash legacy no se tocó. No hubo force push ni rewrite de history. No se imprimieron secretos.
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-09-07 |
+| Entorno local | Windows, `mining-drilling-api` / `main` |
+| `DEPLOY_SHA` | `3e53593a406665c034e11ce3a866845fb2eab7a9` |
+| HEAD local | `3e53593` — coincide con `origin/main` |
+| Working tree | limpio |
+| Stash | `stash@{0}` intacto |
+| Laravel tests | **56 passed / 278 assertions / 0 failures** |
+| Go tests | **PASS** (`go test ./...`) |
+| P0 | CERRADO en código (`86bd723`) — **no validado en producción** |
+| P1 | CERRADO técnico en `origin/main` — **no validado en producción** |
+| FASE 2 errores | Commiteada y pusheada: `10ec5e5` |
+| APP_KEY en `phpunit.xml` | Ausente en el estado actual (`52c16bc` + `PhpunitConfigTest`) |
+| Secretos reales tracked | Ninguno en HEAD actual |
+| Connector remoto Git | **no existe** (`undersurf-connector` solo local, `1d16a5c`) |
+| Deploy | **DETENIDO en FASE 5** |
+
+### Por qué se detuvo
+
+`undsurf.com` / `www.undsurf.com` resuelven a Apache 2.4.58 (Ubuntu) y sirven el sitio institucional (SPA). `GET /api/health` y `GET /api/tenant/holes` en ese host devuelven HTML del marketing, no JSON de Laravel. `api.undsurf.com` no resuelve desde esta máquina.
+
+SSH con la clave local, en modo no interactivo, fue denegado (`publickey`) para los usuarios probados en ese host. Sin sesión autorizada no se auditó el filesystem del servidor, no se hizo `git pull`, no se corrieron migraciones ni caches, y no hay smoke E2E productivo.
+
+### Siguiente paso seguro
+
+Abrir una sesión SSH ya autorizada (el usuario de deploy que ya existe en el droplet) y, **solo lectura primero**:
+
+```text
+whoami
+hostname
+php -v
+ls -la /var/www
+```
+
+Localizar el layout real de Laravel y del Connector **sin inventar uno nuevo**. Si Laravel todavía no está provisionado en ese servidor, el siguiente trabajo es provisioning — no un `git pull` improvisado sobre el vhost del sitio marketing, ni tocar `/var/www/crabb` si convive en el mismo host.
+
+Hasta completar Laravel → Connector → Store/DB → `GET /api/tenant/holes` = 200 real:
+
+```text
+P0 — NO PRODUCCIÓN VALIDADA
+P1 — NO PRODUCCIÓN VALIDADA
+```
