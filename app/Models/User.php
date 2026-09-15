@@ -45,9 +45,27 @@ class User extends Authenticatable
         return $this->hasMany(Membership::class);
     }
 
+    /**
+     * The user's one active tenant membership, or null. Deliberately does
+     * NOT use first() to pick one silently: the app-wide rule is at most
+     * one active membership per user (enforced by a DB partial unique
+     * index — see MembershipLifecycleService), so finding more than one
+     * here means that invariant was violated somewhere outside the
+     * service. Failing loudly is the safe choice — this method must never
+     * be the place that arbitrarily decides which tenant a request
+     * belongs to.
+     *
+     * @throws \RuntimeException if more than one active membership exists
+     */
     public function activeMembership(): ?Membership
     {
-        return $this->memberships()->where('status', Membership::STATUS_ACTIVE)->first();
+        $active = $this->memberships()->where('status', Membership::STATUS_ACTIVE)->get();
+
+        if ($active->count() > 1) {
+            throw new \RuntimeException('MULTIPLE_ACTIVE_MEMBERSHIPS');
+        }
+
+        return $active->first();
     }
 
     public function assignments(): HasMany
