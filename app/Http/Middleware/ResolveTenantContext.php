@@ -12,9 +12,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Resolves the tenant for this request from the authenticated user's active
- * membership and nothing else. Runs after auth:sanctum. Any route behind
- * this middleware may type-hint TenantContext in its controller method and
- * the container will resolve the instance bound here.
+ * membership and nothing else. The membership row is read from the database
+ * on every request; a token issued while the membership was active does not
+ * keep authorizing it after the row leaves status=active.
+ *
+ * The tenant is never taken from the request. A membership for another
+ * tenant does not satisfy this check, and client-supplied tenant ids are
+ * ignored. Runs after auth:sanctum and EnsureUserIsActive, and before any
+ * controller can query tenant data or dispatch a Connector command.
  */
 class ResolveTenantContext
 {

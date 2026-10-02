@@ -176,13 +176,12 @@ class MembershipLifecycleService
                 'deactivation_reason' => $reason,
             ])->save();
 
-            // The only token revocation this step performs: every Sanctum
-            // token belonging to the affected user, scoped strictly by
-            // user_id via the relation — never touches another user's
-            // tokens. Per-request revalidation of `users.active` and the
-            // active membership on every subsequent call is Paso 2; until
-            // then, this is what stops a token issued before the baja from
-            // being usable afterwards.
+            // Immediate revocation: every Sanctum token of this user, scoped
+            // by user_id — never another user's tokens. EnsureUserIsActive
+            // and ResolveTenantContext re-read users.active and the active
+            // membership on later requests, so a token that survives this
+            // delete, or a status change that never calls this method, is
+            // still rejected before tenant data or a Connector command.
             $locked->user->tokens()->delete();
 
             AuditLogger::log(

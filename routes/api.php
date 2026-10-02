@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveRequestCorrelation;
 use App\Http\Middleware\ResolveTenantContext;
 use Illuminate\Support\Facades\Route;
@@ -45,13 +46,17 @@ Route::middleware(AuthenticateDemoInternal::class)->group(function () {
 
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::post('/logout', [AuthController::class, 'logout']);
-    });
+    // Logout stays reachable with a still-valid token after the account is
+    // deactivated, so the client can revoke it. It does not require a membership.
+    Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+    // /me re-checks users.active and does not require a tenant membership.
+    Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->get('/me', [AuthController::class, 'me']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+// Legacy control-plane routes. Authorization stays on the global UserRole
+// policies. They re-check users.active and do not require a membership:
+// these tables are not tenant-scoped yet.
+Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function () {
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
     Route::get('/drilling-plans', [DrillingPlanController::class, 'index']);
@@ -87,7 +92,12 @@ Route::middleware('auth:sanctum')->group(function () {
 // Data Gateway. tenant_id is never read from the request — ResolveTenantContext
 // resolves it server-side from the authenticated user's active membership.
 // See docs/sprints/distributed-data-vertical-slice.md.
-Route::middleware([ResolveRequestCorrelation::class, 'auth:sanctum', ResolveTenantContext::class])->prefix('tenant')->group(function () {
+Route::middleware([
+    ResolveRequestCorrelation::class,
+    'auth:sanctum',
+    EnsureUserIsActive::class,
+    ResolveTenantContext::class,
+])->prefix('tenant')->group(function () {
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
 });
