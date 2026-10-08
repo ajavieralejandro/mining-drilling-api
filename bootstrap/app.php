@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         $middleware->api(prepend: [
+            \App\Http\Middleware\ExcludePublicSiteFromSanctumState::class,
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
