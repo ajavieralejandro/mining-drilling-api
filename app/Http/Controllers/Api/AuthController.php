@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Support\GatewayException;
+use App\Support\RequestCorrelation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,9 +40,21 @@ class AuthController extends Controller
         ]);
     }
 
-    public function me(Request $request): UserResource
+    public function me(Request $request): UserResource|JsonResponse
     {
-        return new UserResource($request->user());
+        $user = $request->user();
+
+        if (! $user->active) {
+            return (new GatewayException(
+                'USER_INACTIVE',
+                'This account is inactive.',
+                401,
+                null,
+                RequestCorrelation::currentId(),
+            ))->toResponse();
+        }
+
+        return new UserResource($user);
     }
 
     public function logout(Request $request): JsonResponse

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\MachineController;
 use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\PlanFileController;
 use App\Http\Controllers\Api\RiskController;
+use App\Http\Controllers\Api\Tenant\TenantConnectionController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
@@ -88,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // resolves it server-side from the authenticated user's active membership.
 // See docs/sprints/distributed-data-vertical-slice.md.
 Route::middleware([ResolveRequestCorrelation::class, 'auth:sanctum', ResolveTenantContext::class])->prefix('tenant')->group(function () {
+    Route::get('/connection', [TenantConnectionController::class, 'show']);
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
 });
