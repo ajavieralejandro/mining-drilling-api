@@ -9,7 +9,6 @@ use App\Support\GatewayException;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * Read-only view of the tenant resolved from the authenticated membership
@@ -34,20 +33,8 @@ class TenantConnectionController extends Controller
         'adapter.postgres' => 'postgres',
     ];
 
-    public function show(Request $request, TenantContext $context): JsonResponse
+    public function show(TenantContext $context): JsonResponse
     {
-        $user = $request->user();
-
-        if ($user === null || ! $user->active) {
-            return (new GatewayException(
-                'USER_INACTIVE',
-                'This account is inactive.',
-                401,
-                null,
-                RequestCorrelation::currentId(),
-            ))->toResponse();
-        }
-
         $tenant = Tenant::query()->find($context->tenantId);
 
         if ($tenant === null) {

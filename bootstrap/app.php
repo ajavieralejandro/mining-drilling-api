@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveRequestCorrelation;
 use App\Support\GatewayException;
 use App\Support\RequestCorrelation;
@@ -44,6 +45,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             AuthenticatesRequests::class,
             ResolveRequestCorrelation::class,
+        );
+        // Re-read users.active only after the token has been authenticated.
+        $middleware->appendToPriorityList(
+            AuthenticatesRequests::class,
+            EnsureUserIsActive::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
