@@ -46,11 +46,14 @@ class ResultController extends Controller
             return $this->error('INVALID_PAYLOAD', 'Unknown request_id', 422);
         }
 
-        if (in_array($command->status, [
+        $closed = in_array($command->status, [
             ConnectorCommand::STATUS_COMPLETED,
             ConnectorCommand::STATUS_FAILED,
             ConnectorCommand::STATUS_TIMEOUT,
-        ], true)) {
+        ], true);
+        $lateSourceResult = $command->status === ConnectorCommand::STATUS_TIMEOUT
+            && str_starts_with($command->op, 'source_config.');
+        if ($closed && ! $lateSourceResult) {
             return response()->json([
                 'protocol_version' => config('connector.protocol_version'),
                 'status' => 'ok',

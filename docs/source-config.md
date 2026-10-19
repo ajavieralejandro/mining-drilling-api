@@ -13,10 +13,10 @@ Bajo la sesión Sanctum y el tenant de la membership:
 - `GET /api/tenant/connection` incluye `source` para un administrador.
 - `POST /api/tenant/connection/source` guarda un borrador. No lo aplica.
 - `POST /api/tenant/connection/source/test` pide al Connector que pruebe ese borrador.
-- `POST /api/tenant/connection/source/apply` exige `confirm: true` y una prueba exitosa de los últimos 15 minutos.
+- `POST /api/tenant/connection/source/apply` exige `confirm: true`, el `config_id` de la fila probada y una prueba exitosa de los últimos 15 minutos. Otra fila se rechaza.
 - `POST /api/tenant/connection/source/cancel` descarta el borrador.
 
-La configuración queda `active` solo cuando el resultado del Connector trae `applied: true` con la misma versión y la misma huella. Si la prueba falla, la fila activa anterior sigue igual.
+La configuración queda `active` solo cuando el resultado del Connector trae `applied: true` con la misma versión y la misma huella. Si la prueba o la aplicación fallan, la fila activa anterior sigue igual. Si esa respuesta se pierde y el comando queda en timeout, el heartbeat con `origin: remote` y la misma versión y huella la marca activa. Un informe de las variables de entorno no activa un borrador.
 
 ## Secretos y auditoría
 

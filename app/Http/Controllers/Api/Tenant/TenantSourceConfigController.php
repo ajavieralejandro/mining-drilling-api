@@ -54,7 +54,13 @@ class TenantSourceConfigController extends Controller
     public function apply(Request $request, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         try {
-            $config = $this->configs->apply($context, $request->boolean('confirm'), $correlation->id);
+            $configId = $request->input('config_id');
+            $config = $this->configs->apply(
+                $context,
+                $request->boolean('confirm'),
+                is_string($configId) ? $configId : null,
+                $correlation->id,
+            );
         } catch (GatewayException $e) {
             return $e->toResponse();
         }

@@ -152,17 +152,25 @@ class TenantSourceConfigTest extends TestCase
         Sanctum::actingAs($user);
         $fake = $this->bindSuccess();
 
-        $this->postJson('/api/tenant/connection/source', $this->payload())->assertCreated();
-        $this->postJson('/api/tenant/connection/source/apply', ['confirm' => true])
+        $draft = $this->postJson('/api/tenant/connection/source', $this->payload())->assertCreated();
+        $this->postJson('/api/tenant/connection/source/apply', [
+            'confirm' => true,
+            'config_id' => $draft->json('data.id'),
+        ])
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'TEST_REQUIRED');
 
-        $this->postJson('/api/tenant/connection/source/test')->assertOk()->assertJsonPath('applied', false);
-        $this->postJson('/api/tenant/connection/source/apply', ['confirm' => false])
+        $tested = $this->postJson('/api/tenant/connection/source/test')->assertOk()->assertJsonPath('applied', false);
+        $testedId = $tested->json('data.id');
+        $this->postJson('/api/tenant/connection/source/apply', ['confirm' => false, 'config_id' => $testedId])
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'CONFIRMATION_REQUIRED');
+        $this->postJson('/api/tenant/connection/source/apply', ['confirm' => true, 'config_id' => '01DIFFERENTCONFIGID000000'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'TEST_REQUIRED');
+        $this->assertSame(0, TenantSourceConfig::query()->where('state', 'active')->count());
 
-        $applied = $this->postJson('/api/tenant/connection/source/apply', ['confirm' => true])
+        $applied = $this->postJson('/api/tenant/connection/source/apply', ['confirm' => true, 'config_id' => $testedId])
             ->assertOk()
             ->assertJsonPath('applied', true)
             ->assertJsonPath('data.state', 'active');
@@ -256,6 +264,93 @@ class TenantSourceConfigTest extends TestCase
         $this->assertSame('10.4.0.8', $stored['host']);
         $this->assertStringNotContainsString(self::PASSWORD, json_encode($stored));
         $this->assertStringNotContainsString(self::PASSWORD, PlatformAuditLog::query()->get()->toJson());
+    }
+
+    public function test_a_lost_apply_response_is_reconciled_from_the_connector_report(): void
+    {
+        [$user, $tenant] = $this->makeUser('admin');
+        $token = TokenHasher::generate('con');
+        $connector = $this->makeConnector($tenant, $token, Connector::STATUS_ONLINE);
+        $session = ConnectorSession::query()->create([
+            'id' => (string) Str::ulid(),
+            'connector_id' => $connector->id,
+            'status' => ConnectorSession::STATUS_ACTIVE,
+            'started_at' => now(),
+        ]);
+        $previous = $this->makeActive($tenant);
+        $fingerprint = DestinationPolicy::fingerprint('postgres', '10.4.0.8', 5432, 'holes', 'public');
+        $tested = TenantSourceConfig::query()->create([
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'connector_id' => $connector->id,
+            'version' => 2,
+            'state' => TenantSourceConfig::STATE_TESTED,
+            'display_name' => 'Base norte',
+            'engine' => 'postgres',
+            'host' => '10.4.0.8',
+            'port' => 5432,
+            'database_name' => 'holes',
+            'schema_name' => 'public',
+            'username' => 'undersurf_ro',
+            'password_ciphertext' => encrypt(self::PASSWORD),
+            'tls_mode' => 'verify-full',
+            'fingerprint' => $fingerprint,
+            'tested_at' => now(),
+            'test_error_code' => 'TIMEOUT',
+        ]);
+        ConnectorCommand::query()->create([
+            'id' => (string) Str::ulid(),
+            'request_id' => 'req_'.(string) Str::ulid(),
+            'correlation_id' => 'cor_lost',
+            'tenant_id' => $tenant->id,
+            'connector_id' => $connector->id,
+            'op' => 'source_config.apply@1',
+            'payload_json' => ['config_id' => $tested->id],
+            'status' => ConnectorCommand::STATUS_TIMEOUT,
+            'error_code' => 'TIMEOUT',
+            'deadline_at' => now()->subMinute(),
+            'dispatched_at' => now()->subMinutes(2),
+            'completed_at' => now()->subMinute(),
+        ]);
+
+        $this->withToken($token)->postJson('/api/connector/v1/heartbeat', [
+            'protocol_version' => '1.0',
+            'connector_id' => $connector->id,
+            'session_id' => $session->id,
+            'source' => [
+                'version' => 2,
+                'origin' => 'env',
+                'fingerprint' => $fingerprint,
+                'engine' => 'postgres',
+                'host' => '10.4.0.8',
+                'port' => 5432,
+                'database' => 'holes',
+            ],
+        ])->assertOk();
+        $this->assertSame('tested', $tested->fresh()->state);
+
+        $this->withToken($token)->postJson('/api/connector/v1/heartbeat', [
+            'protocol_version' => '1.0',
+            'connector_id' => $connector->id,
+            'session_id' => $session->id,
+            'source' => [
+                'version' => 2,
+                'origin' => 'remote',
+                'fingerprint' => $fingerprint,
+                'engine' => 'postgres',
+                'host' => '10.4.0.8',
+                'port' => 5432,
+                'database' => 'holes',
+                'username' => 'undersurf_ro',
+            ],
+        ])->assertOk();
+
+        $this->assertSame('active', $tested->fresh()->state);
+        $this->assertNull($tested->fresh()->test_error_code);
+        $this->assertSame('superseded', $previous->fresh()->state);
+        Sanctum::actingAs($user);
+        $body = $this->getJson('/api/tenant/connection')->assertOk()->getContent();
+        $this->assertStringNotContainsString(self::PASSWORD, $body);
     }
 
     public function test_private_database_is_allowed_and_loopback_follows_the_organization_policy(): void

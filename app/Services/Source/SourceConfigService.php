@@ -115,13 +115,13 @@ class SourceConfigService
     /**
      * @return array<string, mixed>
      */
-    public function apply(TenantContext $context, bool $confirm, ?string $correlationId): array
+    public function apply(TenantContext $context, bool $confirm, ?string $configId, ?string $correlationId): array
     {
-        if (! $confirm) {
-            throw new GatewayException('CONFIRMATION_REQUIRED', 'Tenés que confirmar el cambio de origen.', 422, null, $correlationId);
+        if (! $confirm || ! is_string($configId) || $configId === '') {
+            throw new GatewayException('CONFIRMATION_REQUIRED', 'Tenés que confirmar la configuración que se probó.', 422, null, $correlationId);
         }
 
-        return $this->dispatch($context, 'source_config.apply@1', true, $correlationId);
+        return $this->dispatch($context, 'source_config.apply@1', true, $correlationId, $configId);
     }
 
     public function ingest(ConnectorCommand $command): void
@@ -209,8 +209,94 @@ class SourceConfigService
             'reported_source' => $this->publicReport($report),
             'reported_source_at' => now(),
         ])->save();
+        $this->reconcileReported($connector, $report);
 
         return true;
+    }
+
+    /**
+     * A lost apply response leaves the row tested and the command timed out,
+     * while the Connector is already using that origin. The next heartbeat
+     * is the evidence. An environment report never activates a draft.
+     *
+     * @param  array<string, mixed>  $report
+     */
+    private function reconcileReported(Connector $connector, array $report): void
+    {
+        if (($report['origin'] ?? null) !== 'remote') {
+            return;
+        }
+        $fingerprint = $report['fingerprint'] ?? null;
+        $version = $report['version'] ?? null;
+        if (! is_string($fingerprint) || $fingerprint === '' || ! is_numeric($version)) {
+            return;
+        }
+
+        DB::transaction(function () use ($connector, $fingerprint, $version) {
+            $config = TenantSourceConfig::query()
+                ->where('connector_id', $connector->id)
+                ->where('tenant_id', $connector->tenant_id)
+                ->where('fingerprint', $fingerprint)
+                ->where('version', (int) $version)
+                ->lockForUpdate()
+                ->first();
+
+            if ($config === null || $config->state !== TenantSourceConfig::STATE_TESTED) {
+                return;
+            }
+
+            $command = $this->latestApplyCommand($config);
+            if ($command === null || $command->status === ConnectorCommand::STATUS_FAILED) {
+                return;
+            }
+            $result = is_array($command->result_json) ? $command->result_json : [];
+            if ($command->status === ConnectorCommand::STATUS_COMPLETED && ($result['applied'] ?? false) !== true) {
+                return;
+            }
+
+            TenantSourceConfig::query()
+                ->where('connector_id', $config->connector_id)
+                ->where('state', TenantSourceConfig::STATE_ACTIVE)
+                ->update(['state' => TenantSourceConfig::STATE_SUPERSEDED]);
+
+            $config->forceFill([
+                'state' => TenantSourceConfig::STATE_ACTIVE,
+                'applied_at' => now(),
+                'test_error_code' => null,
+            ])->save();
+
+            $this->auditor->log(
+                event: 'source_config.reconciled',
+                actorType: 'connector',
+                actorId: $connector->id,
+                tenantId: $connector->tenant_id,
+                connectorId: $connector->id,
+                op: 'source_config.apply@1',
+                resultSummary: [
+                    'outcome' => 'reconciled',
+                    'version' => $config->version,
+                    'engine' => $config->engine,
+                    'host' => $config->host,
+                    'port' => $config->port,
+                    'database' => $config->database_name,
+                    'schema' => $config->schema_name,
+                    'fingerprint' => $config->fingerprint,
+                    'tls_mode' => $config->tls_mode,
+                ],
+            );
+        });
+    }
+
+    private function latestApplyCommand(TenantSourceConfig $config): ?ConnectorCommand
+    {
+        return ConnectorCommand::query()
+            ->where('connector_id', $config->connector_id)
+            ->where('tenant_id', $config->tenant_id)
+            ->where('op', 'source_config.apply@1')
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get()
+            ->first(fn (ConnectorCommand $command) => ($command->payload_json['config_id'] ?? null) === $config->id);
     }
 
     public function recordHoleQuery(Connector $connector, ?ConnectorCommand $command, ?string $errorCode): void
@@ -230,7 +316,7 @@ class SourceConfigService
     /**
      * @return array<string, mixed>
      */
-    private function dispatch(TenantContext $context, string $op, bool $applying, ?string $correlationId): array
+    private function dispatch(TenantContext $context, string $op, bool $applying, ?string $correlationId, ?string $confirmedId = null): array
     {
         $this->assertAdmin($context);
         $connector = $this->connector($context);
@@ -238,6 +324,10 @@ class SourceConfigService
 
         if ($config === null || ($applying && $config->state === TenantSourceConfig::STATE_ACTIVE)) {
             throw new GatewayException('TEST_REQUIRED', 'No hay cambios pendientes para aplicar.', 422, null, $correlationId);
+        }
+
+        if ($applying && $config->id !== $confirmedId) {
+            throw new GatewayException('TEST_REQUIRED', 'Esa configuración ya no es la que se probó. Volvé a probarla antes de aplicarla.', 422, null, $correlationId);
         }
 
         if ($applying && ($config->state !== TenantSourceConfig::STATE_TESTED || $config->tested_at === null || $config->tested_at->lt(now()->subMinutes(15)) || $config->test_error_code !== null)) {
