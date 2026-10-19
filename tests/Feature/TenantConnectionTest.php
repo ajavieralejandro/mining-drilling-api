@@ -70,9 +70,10 @@ class TenantConnectionTest extends TestCase
         $payload = $response->json();
         $this->assertSame(['data'], array_keys($payload));
         $this->assertEqualsCanonicalizing(
-            ['tenant', 'connectors', 'observed_at'],
+            ['tenant', 'connectors', 'can_manage_source', 'observed_at'],
             array_keys($payload['data']),
         );
+        $this->assertFalse($payload['data']['can_manage_source']);
         $this->assertEqualsCanonicalizing(['id', 'name'], array_keys($payload['data']['tenant']));
     }
 
