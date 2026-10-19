@@ -34,6 +34,7 @@ class TenantHoleController extends Controller
 
         return response()->json([
             'data' => $result['items'],
+            'origin_id' => $result['origin_id'],
             'request_id' => $result['request_id'],
             'correlation_id' => $result['correlation_id'],
         ]);
@@ -49,6 +50,7 @@ class TenantHoleController extends Controller
 
         return response()->json([
             'data' => $result['item'],
+            'origin_id' => $result['origin_id'],
             'request_id' => $result['request_id'],
             'correlation_id' => $result['correlation_id'],
         ]);

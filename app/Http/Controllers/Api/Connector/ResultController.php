@@ -5,13 +5,15 @@ namespace App\Http\Controllers\Api\Connector;
 use App\Http\Controllers\Controller;
 use App\Models\Connector;
 use App\Models\ConnectorCommand;
+use App\Models\TenantSourceConfig;
 use App\Services\Connector\PlatformAuditor;
+use App\Services\Source\SourceConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ResultController extends Controller
 {
-    public function __invoke(Request $request, PlatformAuditor $auditor): JsonResponse
+    public function __invoke(Request $request, PlatformAuditor $auditor, SourceConfigService $sources): JsonResponse
     {
         /** @var Connector $connector */
         $connector = $request->attributes->get('connector');
@@ -58,14 +60,22 @@ class ResultController extends Controller
 
         $ok = $data['status'] === 'ok';
         $errorCode = $ok ? null : ($data['error']['code'] ?? 'ADAPTER_ERROR');
+        $payload = $this->scrub(is_array($data['payload'] ?? null) ? $data['payload'] : []);
+        if ($this->echoesStoredSecret($command, $data['payload'] ?? [])) {
+            $ok = false;
+            $errorCode = 'SECRET_ECHO';
+            $payload = [];
+        }
 
         $command->forceFill([
             'status' => $ok ? ConnectorCommand::STATUS_COMPLETED : ConnectorCommand::STATUS_FAILED,
-            'result_json' => $ok ? ($data['payload'] ?? []) : null,
+            'result_json' => $ok || str_starts_with($command->op, 'source_config.') ? $payload : null,
             'error_code' => $errorCode,
             'completed_at' => now(),
             'duration_ms' => $data['duration_ms'] ?? null,
         ])->save();
+
+        $sources->ingest($command->fresh());
 
         $auditor->log(
             event: $ok ? 'completed' : 'failed',
@@ -88,6 +98,39 @@ class ResultController extends Controller
             'protocol_version' => config('connector.protocol_version'),
             'status' => 'ok',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function scrub(array $payload): array
+    {
+        $banned = ['password', 'passwd', 'dsn', 'secret', 'tls_ca_pem', 'sslrootcert', 'connector_token', 'enrollment_token'];
+        $clean = [];
+        foreach ($payload as $key => $value) {
+            if (in_array(strtolower((string) $key), $banned, true)) {
+                continue;
+            }
+            $clean[$key] = is_array($value) ? $this->scrub($value) : $value;
+        }
+
+        return $clean;
+    }
+
+    private function echoesStoredSecret(ConnectorCommand $command, mixed $payload): bool
+    {
+        $configId = $command->payload_json['config_id'] ?? null;
+        if (! is_string($configId)) {
+            return false;
+        }
+
+        $config = TenantSourceConfig::query()
+            ->whereKey($configId)
+            ->where('connector_id', $command->connector_id)
+            ->first();
+
+        return $config !== null && app(SourceConfigService::class)->echoesSecret($config, $payload);
     }
 
     private function error(string $code, string $message, int $status): JsonResponse

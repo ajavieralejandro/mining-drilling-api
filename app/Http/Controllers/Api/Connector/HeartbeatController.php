@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Connector;
 use App\Models\ConnectorSession;
 use App\Services\Connector\ConnectorPresence;
+use App\Services\Source\SourceConfigService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class HeartbeatController extends Controller
 {
-    public function __invoke(Request $request, ConnectorPresence $presence): JsonResponse
+    public function __invoke(Request $request, ConnectorPresence $presence, SourceConfigService $sources): JsonResponse
     {
         /** @var Connector $connector */
         $connector = $request->attributes->get('connector');
@@ -24,6 +25,7 @@ class HeartbeatController extends Controller
             'capabilities' => ['nullable', 'array'],
             'status' => ['nullable', 'string'],
             'adapter_status' => ['nullable', 'array'],
+            'source' => ['nullable', 'array'],
         ]);
 
         if ($data['connector_id'] !== $connector->id) {
@@ -46,6 +48,9 @@ class HeartbeatController extends Controller
             $data['capabilities'] ?? null,
         );
         $presence->refreshSessionHeartbeat($session);
+        if (array_key_exists('source', $data)) {
+            $sources->rememberReport($connector, $data['source']);
+        }
 
         return response()->json([
             'protocol_version' => config('connector.protocol_version'),

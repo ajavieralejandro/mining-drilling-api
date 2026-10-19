@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Connector\EnrollController;
 use App\Http\Controllers\Api\Connector\HeartbeatController;
 use App\Http\Controllers\Api\Connector\PollController;
 use App\Http\Controllers\Api\Connector\ResultController;
+use App\Http\Controllers\Api\Connector\SourceConfigController;
 use App\Http\Controllers\Api\Connector\SessionController;
 use App\Http\Controllers\Api\CsvImportController;
 use App\Http\Controllers\Api\DashboardController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\PlanFileController;
 use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\Tenant\TenantConnectionController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
+use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -38,6 +40,7 @@ Route::prefix('connector/v1')->group(function () {
         Route::post('/heartbeat', HeartbeatController::class);
         Route::post('/poll', PollController::class);
         Route::post('/results', ResultController::class);
+        Route::get('/source-config/{config}', SourceConfigController::class);
     });
 });
 
@@ -100,6 +103,10 @@ Route::middleware([
     ResolveTenantContext::class,
 ])->prefix('tenant')->group(function () {
     Route::get('/connection', [TenantConnectionController::class, 'show']);
+    Route::post('/connection/source', [TenantSourceConfigController::class, 'store']);
+    Route::post('/connection/source/cancel', [TenantSourceConfigController::class, 'cancel']);
+    Route::post('/connection/source/test', [TenantSourceConfigController::class, 'test']);
+    Route::post('/connection/source/apply', [TenantSourceConfigController::class, 'apply']);
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
 });

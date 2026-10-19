@@ -40,6 +40,9 @@ class Connector extends Model
         return [
             'capabilities' => 'array',
             'last_seen_at' => 'datetime',
+            'reported_source' => 'array',
+            'reported_source_at' => 'datetime',
+            'last_hole_query' => 'array',
         ];
     }
 

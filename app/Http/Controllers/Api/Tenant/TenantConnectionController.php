@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Connector;
 use App\Models\Tenant;
+use App\Services\Source\SourceConfigService;
 use App\Support\GatewayException;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Read-only view of the tenant resolved from the authenticated membership
@@ -33,7 +35,7 @@ class TenantConnectionController extends Controller
         'adapter.postgres' => 'postgres',
     ];
 
-    public function show(TenantContext $context): JsonResponse
+    public function show(Request $request, TenantContext $context, SourceConfigService $configs): JsonResponse
     {
         $tenant = Tenant::query()->find($context->tenantId);
 
@@ -55,16 +57,28 @@ class TenantConnectionController extends Controller
             ->map(fn (Connector $connector) => $this->publicConnector($connector))
             ->all();
 
-        return response()->json([
-            'data' => [
-                'tenant' => [
-                    'id' => $tenant->id,
-                    'name' => $tenant->name,
-                ],
-                'connectors' => $connectors,
-                'observed_at' => now()->toIso8601String(),
+        $data = [
+            'tenant' => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
             ],
-        ]);
+            'connectors' => $connectors,
+            'can_manage_source' => $context->role === 'admin',
+            'observed_at' => now()->toIso8601String(),
+        ];
+
+        if ($context->role === 'admin') {
+            try {
+                $data['source'] = $configs->present($context, $request->isSecure());
+            } catch (GatewayException $e) {
+                if ($e->errorCode !== 'CONNECTOR_OFFLINE') {
+                    return $e->toResponse();
+                }
+                $data['source'] = null;
+            }
+        }
+
+        return response()->json(['data' => $data]);
     }
 
     /**
