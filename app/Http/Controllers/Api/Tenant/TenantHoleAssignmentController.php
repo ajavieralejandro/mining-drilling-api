@@ -31,8 +31,8 @@ class TenantHoleAssignmentController extends Controller
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $hole, $requestedOrigin, $correlation->id);
-            $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
+            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
@@ -44,6 +44,7 @@ class TenantHoleAssignmentController extends Controller
             'data' => [
                 'hole_id' => $hole,
                 'origin_id' => $originId,
+                'hole_status' => $verified['item']['status'] ?? null,
                 'crew' => $crewData['crew'],
                 'active_count' => $crewData['active_count'],
                 'assignments' => TenantHoleAssignmentResource::collection($history),
@@ -67,13 +68,19 @@ class TenantHoleAssignmentController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $hole, $requestedOrigin, $correlation->id);
-            $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
+            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
 
-        $updatedCrew = $this->assignmentService->assignCrew($context, $originId, $hole, $request->validated());
+        $updatedCrew = $this->assignmentService->assignCrew(
+            $context,
+            $originId,
+            $hole,
+            $request->validated(),
+            $verified['item'],
+        );
 
         return response()->json([
             'message' => 'Cuadrilla actualizada exitosamente.',

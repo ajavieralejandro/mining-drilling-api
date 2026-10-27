@@ -115,8 +115,10 @@ class TenantHoleAssignmentService
 
     /**
      * Asigna cuadrilla completa o integrante individual garantizando reglas de negocio y transaccionalidad.
+     *
+     * @param  array<string, mixed>  $gatewayHoleItem  Datos validados del pozo desde el Gateway
      */
-    public function assignCrew(TenantContext $context, string $originId, string $holeId, array $data): array
+    public function assignCrew(TenantContext $context, string $originId, string $holeId, array $data, array $gatewayHoleItem): array
     {
         $isCrewFormat = isset($data['driller_id'])
             || isset($data['helper_id'])
@@ -124,11 +126,11 @@ class TenantHoleAssignmentService
             || isset($data['supervisor_id']);
 
         if ($isCrewFormat) {
-            return $this->processCrewPayload($context, $originId, $holeId, $data);
+            return $this->processCrewPayload($context, $originId, $holeId, $data, $gatewayHoleItem);
         }
 
         if (isset($data['user_id'], $data['role_in_hole'])) {
-            return $this->processSingleAssignment($context, $originId, $holeId, $data);
+            return $this->processSingleAssignment($context, $originId, $holeId, $data, $gatewayHoleItem);
         }
 
         throw ValidationException::withMessages([
@@ -136,15 +138,15 @@ class TenantHoleAssignmentService
         ]);
     }
 
-    private function processCrewPayload(TenantContext $context, string $originId, string $holeId, array $data): array
+    private function processCrewPayload(TenantContext $context, string $originId, string $holeId, array $data, array $gatewayHoleItem): array
     {
-        return DB::transaction(function () use ($context, $originId, $holeId, $data) {
-            // 1. Bloqueo pesimista sobre la referencia operativa del pozo
-            $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId);
+        return DB::transaction(function () use ($context, $originId, $holeId, $data, $gatewayHoleItem) {
+            // 1. Bloqueo pesimista sobre la referencia operativa del pozo con estado real del Gateway
+            $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId, $gatewayHoleItem);
 
             if (! $state->isOperable()) {
                 throw ValidationException::withMessages([
-                    'status' => "El pozo se encuentra en estado '{$state->status}' y no admite asignaciones de cuadrilla.",
+                    'status' => "El pozo se encuentra en estado '{$state->status}' en el origen y no admite asignaciones de cuadrilla.",
                 ]);
             }
 
@@ -233,14 +235,14 @@ class TenantHoleAssignmentService
         }, attempts: 5);
     }
 
-    private function processSingleAssignment(TenantContext $context, string $originId, string $holeId, array $data): array
+    private function processSingleAssignment(TenantContext $context, string $originId, string $holeId, array $data, array $gatewayHoleItem): array
     {
-        return DB::transaction(function () use ($context, $originId, $holeId, $data) {
-            $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId);
+        return DB::transaction(function () use ($context, $originId, $holeId, $data, $gatewayHoleItem) {
+            $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId, $gatewayHoleItem);
 
             if (! $state->isOperable()) {
                 throw ValidationException::withMessages([
-                    'status' => "El pozo se encuentra en estado '{$state->status}' y no admite asignaciones de cuadrilla.",
+                    'status' => "El pozo se encuentra en estado '{$state->status}' en el origen y no admite asignaciones de cuadrilla.",
                 ]);
             }
 

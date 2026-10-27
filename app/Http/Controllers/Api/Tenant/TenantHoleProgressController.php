@@ -34,7 +34,7 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $hole, $requestedOrigin, $correlation->id);
+            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
             $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
         } catch (GatewayException $e) {
             return $e->toResponse();
@@ -66,8 +66,8 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $hole, $requestedOrigin, $correlation->id);
-            $gatewayItem = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
+            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
@@ -87,7 +87,7 @@ class TenantHoleProgressController extends Controller
             $originId,
             $hole,
             $request->validated(),
-            $gatewayItem,
+            $verified['item'],
         );
 
         $isReplay = $result['idempotent_replay'];
@@ -124,8 +124,8 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $hole, $requestedOrigin, $correlation->id);
-            $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
+            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
@@ -136,6 +136,7 @@ class TenantHoleProgressController extends Controller
             $hole,
             $request->input('initial_depth'),
             $request->input('notes'),
+            $verified['item'],
         );
 
         $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole);

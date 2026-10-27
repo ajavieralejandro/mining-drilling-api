@@ -107,13 +107,13 @@ class TenantHoleProgressService
                     throw new HttpException(409, 'Conflicto de idempotencia: la clave provista ya fue utilizada con datos o destino diferentes.');
                 }
 
-                // Bloqueo pesimista de la fila operacional estable del pozo
-                $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId);
+                // Bloqueo pesimista de la fila operacional estable del pozo con estado real del Gateway
+                $state = $this->operationalService->resolveAndLock($context->tenantId, $originId, $holeId, $gatewayHoleItem);
 
                 // Comprobar estado operable
                 if (! $state->isOperable()) {
                     throw ValidationException::withMessages([
-                        'status' => "El pozo se encuentra en estado '{$state->status}' y no admite nuevos registros de avance.",
+                        'status' => "El pozo se encuentra en estado '{$state->status}' en el origen y no admite nuevos registros de avance.",
                     ]);
                 }
 
@@ -189,7 +189,7 @@ class TenantHoleProgressService
             }, attempts: 5);
         } catch (QueryException $e) {
             // Manejar carrera en la restricción única de idempotencia sin devolver 500
-            if ($e->getCode() === '23000' || $e->getCode() === '23505' || str_contains($e->getMessage(), 'th_progress_tenant_idempotency_uniq')) {
+            if ($this->isExpectedIdempotencyCollision($e)) {
                 $existingCheck = TenantHoleProgressLog::with('user')
                     ->where('tenant_id', $context->tenantId)
                     ->where('idempotency_key', $idempotencyKey)
@@ -207,5 +207,19 @@ class TenantHoleProgressService
 
             throw $e;
         }
+    }
+
+    private function isExpectedIdempotencyCollision(QueryException $e): bool
+    {
+        $code = (string) $e->getCode();
+        $message = strtolower($e->getMessage());
+
+        $isUniqueSqlState = in_array($code, ['23000', '23505'], true);
+        if (! $isUniqueSqlState) {
+            return false;
+        }
+
+        return str_contains($message, 'th_progress_tenant_idempotency_uniq')
+            || (str_contains($message, 'tenant_hole_progress_logs') && str_contains($message, 'idempotency_key'));
     }
 }
