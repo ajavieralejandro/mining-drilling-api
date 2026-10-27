@@ -25,4 +25,19 @@ class Tenant extends Model
     {
         return $this->hasMany(ConnectorEnrollmentToken::class);
     }
+
+    public function holeOperationalStates(): HasMany
+    {
+        return $this->hasMany(TenantHoleOperationalState::class);
+    }
+
+    public function holeAssignments(): HasMany
+    {
+        return $this->hasMany(TenantHoleAssignment::class);
+    }
+
+    public function holeProgressLogs(): HasMany
+    {
+        return $this->hasMany(TenantHoleProgressLog::class);
+    }
 }

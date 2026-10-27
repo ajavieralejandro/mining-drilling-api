@@ -83,6 +83,45 @@ class User extends Authenticatable
         return $this->hasMany(Observation::class);
     }
 
+    public function tenantHoleAssignments(): HasMany
+    {
+        return $this->hasMany(TenantHoleAssignment::class);
+    }
+
+    public function tenantHoleProgressLogs(): HasMany
+    {
+        return $this->hasMany(TenantHoleProgressLog::class);
+    }
+
+    public function isAssignedToTenantHole(string $tenantId, string $holeId, ?string $originId = null): bool
+    {
+        $query = $this->tenantHoleAssignments()
+            ->where('tenant_id', $tenantId)
+            ->where('hole_id', $holeId)
+            ->where('active', true);
+
+        if ($originId !== null) {
+            $query->where('origin_id', $originId);
+        }
+
+        return $query->exists();
+    }
+
+    public function isAssignedAsDrillerToTenantHole(string $tenantId, string $holeId, ?string $originId = null): bool
+    {
+        $query = $this->tenantHoleAssignments()
+            ->where('tenant_id', $tenantId)
+            ->where('hole_id', $holeId)
+            ->where('role_in_hole', 'driller')
+            ->where('active', true);
+
+        if ($originId !== null) {
+            $query->where('origin_id', $originId);
+        }
+
+        return $query->exists();
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;

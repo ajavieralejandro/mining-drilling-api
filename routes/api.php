@@ -20,7 +20,9 @@ use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\PlanFileController;
 use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\Tenant\TenantConnectionController;
+use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
+use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -102,4 +104,15 @@ Route::middleware([
     Route::get('/connection', [TenantConnectionController::class, 'show']);
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
+
+    // Cuadrillas / Asignaciones en pozos del Gateway
+    Route::get('/holes/{hole}/assignments', [TenantHoleAssignmentController::class, 'index']);
+    Route::post('/holes/{hole}/assignments', [TenantHoleAssignmentController::class, 'store']);
+    Route::get('/holes/{hole}/eligible-personnel', [TenantHoleAssignmentController::class, 'eligiblePersonnel']);
+    Route::get('/personnel/eligible', [TenantHoleAssignmentController::class, 'eligiblePersonnel']);
+
+    // Avances de perforación en pozos del Gateway
+    Route::get('/holes/{hole}/progress', [TenantHoleProgressController::class, 'index']);
+    Route::post('/holes/{hole}/progress', [TenantHoleProgressController::class, 'store']);
+    Route::post('/holes/{hole}/initialize-depth', [TenantHoleProgressController::class, 'initializeDepth']);
 });
