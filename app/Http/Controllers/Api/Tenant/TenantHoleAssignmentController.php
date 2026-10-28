@@ -31,11 +31,13 @@ class TenantHoleAssignmentController extends Controller
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
-            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $resolved = $this->originResolver->resolveHoleAndOrigin($context, $hole, $correlation->id, $requestedOrigin);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
+
+        $originId = $resolved['origin_id'];
+        $holeItem = $resolved['item'];
 
         $crewData = $this->assignmentService->getCrewForHole($context->tenantId, $originId, $hole);
         $history = $this->assignmentService->listAssignments($context->tenantId, $originId, $hole);
@@ -44,12 +46,12 @@ class TenantHoleAssignmentController extends Controller
             'data' => [
                 'hole_id' => $hole,
                 'origin_id' => $originId,
-                'hole_status' => $verified['item']['status'] ?? null,
+                'hole_status' => $holeItem['status'] ?? null,
                 'crew' => $crewData['crew'],
                 'active_count' => $crewData['active_count'],
                 'assignments' => TenantHoleAssignmentResource::collection($history),
             ],
-            'request_id' => $correlation->id,
+            'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -68,18 +70,20 @@ class TenantHoleAssignmentController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
-            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $resolved = $this->originResolver->resolveHoleAndOrigin($context, $hole, $correlation->id, $requestedOrigin);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
+
+        $originId = $resolved['origin_id'];
+        $holeItem = $resolved['item'];
 
         $updatedCrew = $this->assignmentService->assignCrew(
             $context,
             $originId,
             $hole,
             $request->validated(),
-            $verified['item'],
+            $holeItem,
         );
 
         return response()->json([
@@ -90,7 +94,7 @@ class TenantHoleAssignmentController extends Controller
                 'crew' => $updatedCrew['crew'],
                 'active_count' => $updatedCrew['active_count'],
             ],
-            'request_id' => $correlation->id,
+            'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ], 201);
     }

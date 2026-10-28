@@ -2,6 +2,7 @@
 
 namespace App\Domain\Repositories;
 
+use App\Models\Connector;
 use App\Support\TenantContext;
 
 /**
@@ -21,13 +22,13 @@ interface TenantHoleRepositoryInterface
      *         HTTP request (see App\Support\RequestCorrelation) — carried
      *         through to the Connector dispatch and back so it survives
      *         even a failure that happens before a command exists.
-     * @return array{items: array<int, array{id: string, code: string, status: string}>, request_id: ?string, correlation_id: string}
+     * @return array{items: array<int, array{id: string, code: string, status: string}>, origin_id?: ?string, connector?: Connector, request_id: ?string, correlation_id: string}
      */
     public function list(TenantContext $context, string $correlationId, int $limit = 10): array;
 
     /**
      * @param  string  $correlationId  See list().
-     * @return array{item: array{id: string, code: string, status: string}, request_id: ?string, correlation_id: string}
+     * @return array{item: array{id: string, code: string, status: string}, origin_id?: ?string, connector?: Connector, request_id: ?string, correlation_id: string}
      *
      * @throws \App\Support\GatewayException with code NOT_FOUND (HTTP 404)
      *         when $holeId does not exist in this tenant's own database —

@@ -541,6 +541,113 @@ class TenantGatewayTest extends TestCase
             ->assertJsonPath('correlation_id', 'cor_happy_path');
     }
 
+    public function test_list_forwards_aborted_hole_without_inferring_it_from_depth(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $reason = 'Zona de falla inestable. Se abandonó la perforación para proteger al personal y al equipo.';
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => [
+                'items' => [
+                    [
+                        'id' => '1004',
+                        'code' => 'RLEK-04',
+                        'status' => 'aborted',
+                        'planned_depth' => 160,
+                        'reached_depth' => 47.5,
+                        'abandonment_reason' => $reason,
+                    ],
+                    [
+                        'id' => '1005',
+                        'code' => 'RLEK-05',
+                        'status' => 'in_progress',
+                        'planned_depth' => 160,
+                        'reached_depth' => 40,
+                    ],
+                    [
+                        'id' => '1006',
+                        'code' => 'RLEK-06',
+                        'status' => 'hold',
+                    ],
+                    [
+                        'id' => '1007',
+                        'code' => 'RLEK-07',
+                        'status' => 'aborted',
+                        'planned_depth' => 160,
+                        'reached_depth' => 0,
+                    ],
+                ],
+            ],
+        ]));
+
+        $response = $this->getJson('/api/tenant/holes')->assertOk();
+        $response->assertJsonPath('data.0.status', 'aborted');
+        $response->assertJsonPath('data.0.planned_depth', 160);
+        $response->assertJsonPath('data.0.reached_depth', 47.5);
+        $response->assertJsonPath('data.0.abandonment_reason', $reason);
+        $response->assertJsonPath('data.1.status', 'in_progress');
+        $response->assertJsonPath('data.1.reached_depth', 40);
+        $response->assertJsonPath('data.2.status', 'hold');
+        $response->assertJsonPath('data.3.status', 'aborted');
+        $response->assertJsonPath('data.3.reached_depth', 0);
+        $this->assertArrayNotHasKey('abandonment_reason', $response->json('data.3'));
+    }
+
+    public function test_hole_detail_preserves_aborted_facts(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $reason = 'Zona de falla inestable. Se abandonó la perforación para proteger al personal y al equipo.';
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'op' => 'drill_holes.get@1',
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => [
+                'item' => [
+                    'id' => '1004',
+                    'code' => 'RLEK-04',
+                    'status' => 'aborted',
+                    'planned_depth' => 160,
+                    'reached_depth' => 47.5,
+                    'abandonment_reason' => $reason,
+                ],
+            ],
+        ]));
+
+        $this->getJson('/api/tenant/holes/1004')
+            ->assertOk()
+            ->assertJsonPath('data.id', '1004')
+            ->assertJsonPath('data.code', 'RLEK-04')
+            ->assertJsonPath('data.status', 'aborted')
+            ->assertJsonPath('data.planned_depth', 160)
+            ->assertJsonPath('data.reached_depth', 47.5)
+            ->assertJsonPath('data.abandonment_reason', $reason);
+    }
+
+    public function test_list_item_without_status_is_still_invalid(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $this->fakeDispatcherReturning($this->fakeCommand([
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => [
+                'items' => [
+                    ['id' => '1004', 'code' => 'RLEK-04'],
+                ],
+            ],
+        ]));
+
+        $this->getJson('/api/tenant/holes')
+            ->assertStatus(502)
+            ->assertJsonPath('error.code', 'INVALID_RESULT');
+    }
+
     /**
      * @return array{0: User, 1: Tenant, 2: Connector, 3: Tenant, 4: Connector}
      */

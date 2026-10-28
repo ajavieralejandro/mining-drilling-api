@@ -34,11 +34,12 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
-            $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $resolved = $this->originResolver->resolveHoleAndOrigin($context, $hole, $correlation->id, $requestedOrigin);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
+
+        $originId = $resolved['origin_id'];
 
         $perPage = (int) $request->query('per_page', 15);
         $perPage = ($perPage > 0 && $perPage <= 100) ? $perPage : 15;
@@ -56,7 +57,7 @@ class TenantHoleProgressController extends Controller
                 'total' => $paginator->total(),
                 'last_page' => $paginator->lastPage(),
             ],
-            'request_id' => $correlation->id,
+            'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -66,11 +67,13 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
-            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $resolved = $this->originResolver->resolveHoleAndOrigin($context, $hole, $correlation->id, $requestedOrigin);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
+
+        $originId = $resolved['origin_id'];
+        $holeItem = $resolved['item'];
 
         // Autorizar ANTES de procesar o devolver cualquier replay idempotente
         if (! $this->policy->create($request->user(), $context, $hole, $originId)) {
@@ -87,7 +90,7 @@ class TenantHoleProgressController extends Controller
             $originId,
             $hole,
             $request->validated(),
-            $verified['item'],
+            $holeItem,
         );
 
         $isReplay = $result['idempotent_replay'];
@@ -99,7 +102,7 @@ class TenantHoleProgressController extends Controller
                 : 'Avance registrado exitosamente.',
             'data' => new TenantHoleProgressLogResource($result['progress']),
             'idempotent_replay' => $isReplay,
-            'request_id' => $correlation->id,
+            'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ], $statusCode);
 
@@ -124,11 +127,13 @@ class TenantHoleProgressController extends Controller
         $requestedOrigin = $request->input('origin_id') ?: $request->header('X-Origin-Id');
 
         try {
-            $originId = $this->originResolver->resolveAuthorizedOrigin($context, $requestedOrigin, $correlation->id);
-            $verified = $this->originResolver->verifyHoleInGateway($context, $correlation->id, $hole, $originId);
+            $resolved = $this->originResolver->resolveHoleAndOrigin($context, $hole, $correlation->id, $requestedOrigin);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
+
+        $originId = $resolved['origin_id'];
+        $holeItem = $resolved['item'];
 
         $this->operationalService->initializeDepth(
             $context,
@@ -136,7 +141,7 @@ class TenantHoleProgressController extends Controller
             $hole,
             $request->input('initial_depth'),
             $request->input('notes'),
-            $verified['item'],
+            $holeItem,
         );
 
         $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole);
@@ -144,7 +149,7 @@ class TenantHoleProgressController extends Controller
         return response()->json([
             'message' => 'Profundidad inicial del pozo establecida exitosamente.',
             'data' => $summary,
-            'request_id' => $correlation->id,
+            'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ]);
     }

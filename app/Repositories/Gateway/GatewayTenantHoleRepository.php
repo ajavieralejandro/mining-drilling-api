@@ -3,6 +3,7 @@
 namespace App\Repositories\Gateway;
 
 use App\Domain\Repositories\TenantHoleRepositoryInterface;
+use App\Models\Connector;
 use App\Models\ConnectorCommand;
 use App\Services\Connector\CommandDispatcher;
 use App\Support\GatewayException;
@@ -31,6 +32,8 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 
         return [
             'items' => $this->requireListItems($command),
+            'origin_id' => $this->originId($command),
+            'connector' => $connector,
             'request_id' => $command->request_id,
             'correlation_id' => $command->correlation_id,
         ];
@@ -53,14 +56,24 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 
         return [
             'item' => $command->result_json['item'] ?? [],
+            'origin_id' => $this->originId($command),
+            'connector' => $connector,
             'request_id' => $command->request_id,
             'correlation_id' => $command->correlation_id,
         ];
     }
 
+    private function originId(ConnectorCommand $command): ?string
+    {
+        $origin = $command->result_json['origin_id'] ?? $command->result_json['item']['origin_id'] ?? null;
+
+        return is_string($origin) && trim($origin) !== '' ? trim($origin) : null;
+    }
+
     /**
      * drill_holes.list@1 result must be {items: [ {id, code, status}, ... ]}.
      * An empty list is valid; a missing or non-list items key is not.
+     * Other keys on an item are kept. Status is not rewritten from depth.
      *
      * @return array<int, array<string, mixed>>
      */
