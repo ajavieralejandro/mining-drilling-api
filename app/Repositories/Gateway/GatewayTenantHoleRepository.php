@@ -6,6 +6,7 @@ use App\Domain\Repositories\TenantHoleRepositoryInterface;
 use App\Models\Connector;
 use App\Models\ConnectorCommand;
 use App\Services\Connector\CommandDispatcher;
+use App\Services\Source\SourceConfigService;
 use App\Support\GatewayException;
 use App\Support\TenantContext;
 
@@ -13,20 +14,16 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 {
     use GatewayCommandTrait;
 
-    public function __construct(private readonly CommandDispatcher $dispatcher) {}
+    public function __construct(
+        private readonly CommandDispatcher $dispatcher,
+        private readonly SourceConfigService $sources,
+    ) {}
 
     public function list(TenantContext $context, string $correlationId, int $limit = 10): array
     {
         $connector = $this->resolveConnector($context->tenantId, $correlationId);
 
-        $command = $this->dispatchAndWait(
-            $this->dispatcher,
-            $connector,
-            'drill_holes.list@1',
-            ['limit' => $limit],
-            $context->userId,
-            $correlationId,
-        );
+        $command = $this->dispatchHole($connector, 'drill_holes.list@1', ['limit' => $limit], $context->userId, $correlationId);
 
         $this->assertOk($command);
 
@@ -43,14 +40,7 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
     {
         $connector = $this->resolveConnector($context->tenantId, $correlationId);
 
-        $command = $this->dispatchAndWait(
-            $this->dispatcher,
-            $connector,
-            'drill_holes.get@1',
-            ['id' => $holeId],
-            $context->userId,
-            $correlationId,
-        );
+        $command = $this->dispatchHole($connector, 'drill_holes.get@1', ['id' => $holeId], $context->userId, $correlationId);
 
         $this->assertOk($command);
 
@@ -61,6 +51,27 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
             'request_id' => $command->request_id,
             'correlation_id' => $command->correlation_id,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function dispatchHole(Connector $connector, string $op, array $payload, int $userId, string $correlationId): ConnectorCommand
+    {
+        try {
+            $command = $this->dispatchAndWait($this->dispatcher, $connector, $op, $payload, $userId, $correlationId);
+        } catch (GatewayException $e) {
+            $this->sources->recordHoleQuery($connector, null, $e->errorCode);
+            throw $e;
+        }
+
+        $this->sources->recordHoleQuery(
+            $connector,
+            $command,
+            $command->status === ConnectorCommand::STATUS_COMPLETED ? null : $command->error_code,
+        );
+
+        return $command;
     }
 
     private function originId(ConnectorCommand $command): ?string

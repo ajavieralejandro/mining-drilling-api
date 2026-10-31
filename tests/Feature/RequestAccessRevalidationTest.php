@@ -77,6 +77,8 @@ class RequestAccessRevalidationTest extends TestCase
 
         $this->assertSame(0, $user->tokens()->count());
 
+        $this->app['auth']->forgetGuards();
+
         $this->withToken($token)
             ->getJson('/api/tenant/holes')
             ->assertStatus(401)

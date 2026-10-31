@@ -6,10 +6,13 @@ return [
     'demo_internal_token' => env('DEMO_INTERNAL_TOKEN'),
     'demo_command_timeout_seconds' => (int) env('DEMO_COMMAND_TIMEOUT_SECONDS', 10),
     'demo_poll_interval_ms' => (int) env('DEMO_POLL_INTERVAL_MS', 200),
+    'source_command_timeout_seconds' => (int) env('SOURCE_COMMAND_TIMEOUT_SECONDS', 15),
     'supported_ops' => [
         'drill_holes.list@1',
         'drill_holes.get@1',
         'progress.create@1',
         'progress.list@1',
+        'source_config.test@1',
+        'source_config.apply@1',
     ],
 ];
