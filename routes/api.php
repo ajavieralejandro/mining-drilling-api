@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Tenant\TenantConnectionController;
 use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
+use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
 use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
@@ -117,6 +118,12 @@ Route::middleware([
     Route::post('/holes/{hole}/assignments', [TenantHoleAssignmentController::class, 'store']);
     Route::get('/holes/{hole}/eligible-personnel', [TenantHoleAssignmentController::class, 'eligiblePersonnel']);
     Route::get('/personnel/eligible', [TenantHoleAssignmentController::class, 'eligiblePersonnel']);
+
+    // Gestión y sincronización de Personal del Tenant (Control Plane + Gateway)
+    Route::get('/personnel', [TenantPersonnelController::class, 'index']);
+    Route::post('/personnel', [TenantPersonnelController::class, 'store']);
+    Route::patch('/personnel/{id}', [TenantPersonnelController::class, 'update']);
+    Route::delete('/personnel/{id}', [TenantPersonnelController::class, 'destroy']);
 
     // Avances de perforación en pozos del Gateway
     Route::get('/holes/{hole}/progress', [TenantHoleProgressController::class, 'index']);

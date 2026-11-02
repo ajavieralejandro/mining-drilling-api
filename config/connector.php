@@ -14,5 +14,7 @@ return [
         'progress.list@1',
         'source_config.test@1',
         'source_config.apply@1',
+        'personnel.sync@1',
+        'personnel.list@1',
     ],
 ];
