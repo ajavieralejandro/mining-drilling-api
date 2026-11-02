@@ -155,7 +155,7 @@ class TenantHoleOperationalStateService
     /**
      * Resumen operativo consolidado del pozo para encabezados web y paneles de control.
      */
-    public function getSummary(string $tenantId, string $originId, string $holeId): array
+    public function getSummary(string $tenantId, string $originId, string $holeId, ?string $gatewayStatus = null): array
     {
         $state = TenantHoleOperationalState::query()
             ->where('tenant_id', $tenantId)
@@ -182,11 +182,14 @@ class TenantHoleOperationalStateService
             }
         }
 
+        $effectiveStatus = $state?->status ?? ($gatewayStatus ?: TenantHoleOperationalState::STATUS_IN_PROGRESS);
+        $isOperable = $state ? $state->isOperable() : ($effectiveStatus === TenantHoleOperationalState::STATUS_IN_PROGRESS);
+
         return [
             'hole_id' => $holeId,
             'origin_id' => $originId,
-            'status' => $state?->status ?? TenantHoleOperationalState::STATUS_IN_PROGRESS,
-            'is_operable' => $state ? $state->isOperable() : false,
+            'status' => $effectiveStatus,
+            'is_operable' => $isOperable,
             'depth_initialized' => (bool) ($state?->depth_initialized ?? false),
             'initial_depth' => $initialDepth,
             'current_depth' => $currentDepth,

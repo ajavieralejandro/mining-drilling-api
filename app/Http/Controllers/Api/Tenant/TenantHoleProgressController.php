@@ -46,7 +46,7 @@ class TenantHoleProgressController extends Controller
         $page = max(1, (int) $request->query('page', 1));
 
         $paginator = $this->progressService->listProgress($context->tenantId, $originId, $hole, $perPage, $page);
-        $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole);
+        $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole, $resolved['item']['status'] ?? null);
 
         return response()->json([
             'data' => TenantHoleProgressLogResource::collection($paginator->items()),
