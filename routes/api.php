@@ -89,6 +89,8 @@ Route::middleware(['auth:sanctum', EnsureUserIsActive::class])->group(function (
     Route::get('/risks', [RiskController::class, 'index']);
 
     Route::get('/machines', [MachineController::class, 'index']);
+    Route::post('/machines', [MachineController::class, 'store']);
+    Route::patch('/machines/{machine}', [MachineController::class, 'update']);
 
     Route::post('/imports/preview', [CsvImportController::class, 'preview']);
     Route::post('/imports/confirm', [CsvImportController::class, 'confirm']);
