@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'role',
         'shift',
         'active',
+        'is_super_admin',
     ];
 
     protected $hidden = [
@@ -37,6 +39,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'active' => 'boolean',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -120,6 +123,26 @@ class User extends Authenticatable
         }
 
         return $query->exists();
+    }
+
+    public function userGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(UserGroup::class, 'user_group_members')->withTimestamps();
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
+    }
+
+    public function hasPermission(string $permission, ?string $tenantId = null): bool
+    {
+        return app(\App\Services\PermissionService::class)->hasPermission($this, $permission, $tenantId);
+    }
+
+    public function permissions(?string $tenantId = null): array
+    {
+        return app(\App\Services\PermissionService::class)->getPermissionsForUser($this, $tenantId);
     }
 
     public function isAdmin(): bool

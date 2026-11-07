@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\PermissionController;
+use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Connector\EnrollController;
 use App\Http\Controllers\Api\Connector\HeartbeatController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\PlanFileController;
 use App\Http\Controllers\Api\RiskController;
 use App\Http\Controllers\Api\Tenant\TenantConnectionController;
+use App\Http\Controllers\Api\Tenant\TenantGroupController;
 use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
@@ -28,6 +31,7 @@ use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
 use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveRequestCorrelation;
 use App\Http\Middleware\ResolveTenantContext;
@@ -131,4 +135,21 @@ Route::middleware([
     Route::get('/holes/{hole}/progress', [TenantHoleProgressController::class, 'index']);
     Route::post('/holes/{hole}/progress', [TenantHoleProgressController::class, 'store']);
     Route::post('/holes/{hole}/initialize-depth', [TenantHoleProgressController::class, 'initializeDepth']);
+
+    // Grupos de usuarios del Tenant
+    Route::get('/groups', [TenantGroupController::class, 'index']);
+    Route::post('/groups', [TenantGroupController::class, 'store']);
+    Route::get('/groups/{id}', [TenantGroupController::class, 'show']);
+    Route::put('/groups/{id}', [TenantGroupController::class, 'update']);
+    Route::delete('/groups/{id}', [TenantGroupController::class, 'destroy']);
+});
+
+// Super Admin platform management routes
+Route::middleware([
+    'auth:sanctum',
+    EnsureUserIsActive::class,
+    EnsureSuperAdmin::class,
+])->prefix('admin')->group(function () {
+    Route::get('/permissions', [PermissionController::class, 'index']);
+    Route::apiResource('roles', RoleController::class);
 });

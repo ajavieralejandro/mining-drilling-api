@@ -100,7 +100,7 @@ class TenantPersonnelService
                 $user->save();
             }
 
-            return $this->membershipLifecycle->activate(
+            $activated = $this->membershipLifecycle->activate(
                 user: $user,
                 tenant: $tenant,
                 role: $role,
@@ -108,6 +108,13 @@ class TenantPersonnelService
                 externalHrId: $externalHrId,
                 actor: $actor,
             );
+
+            $roleModel = \App\Models\Role::forTenant($tenant->id)->where('slug', $role)->first();
+            if ($roleModel) {
+                $activated->roles()->syncWithoutDetaching([$roleModel->id]);
+            }
+
+            return $activated;
         });
 
         // Sincronización segura al conector (base del cliente)
@@ -160,6 +167,11 @@ class TenantPersonnelService
             if (! empty($data['role'])) {
                 $user->role = trim($data['role']);
                 $membership->role = trim($data['role']);
+
+                $roleModel = \App\Models\Role::forTenant($membership->tenant_id)->where('slug', trim($data['role']))->first();
+                if ($roleModel) {
+                    $membership->roles()->sync([$roleModel->id]);
+                }
             }
             if (isset($data['external_hr_id'])) {
                 $membership->external_hr_id = trim($data['external_hr_id']);

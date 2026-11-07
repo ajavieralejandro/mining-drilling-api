@@ -16,6 +16,8 @@ class UserResource extends JsonResource
             'role' => $this->role?->value,
             'shift' => $this->shift,
             'active' => $this->active,
+            'is_super_admin' => (bool) $this->is_super_admin,
+            'permissions' => $this->permissions(),
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * The user <-> tenant link. A user's login identity is UndSurf's (see
@@ -67,6 +68,11 @@ class Membership extends Model
     public function deactivatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deactivated_by');
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'membership_roles')->withTimestamps();
     }
 
     public function isActive(): bool

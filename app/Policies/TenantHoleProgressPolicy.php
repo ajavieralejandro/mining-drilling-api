@@ -10,13 +10,22 @@ class TenantHoleProgressPolicy
 {
     public function viewAny(User $user, TenantContext $context): bool
     {
-        return $user->activeMembership()?->tenant_id === $context->tenantId;
+        return $user->hasPermission('progress.view', $context->tenantId)
+            || $user->activeMembership()?->tenant_id === $context->tenantId;
     }
 
     public function create(User $user, TenantContext $context, string $holeId, ?string $originId = null): bool
     {
-        if ($user->isAdmin() || $context->role === UserRole::Admin->value) {
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
             return true;
+        }
+
+        if ($user->hasPermission('progress.create', $context->tenantId)) {
+            if ($user->hasPermission('drill_holes.view_all', $context->tenantId) || $user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value) {
+                return true;
+            }
+
+            return $user->isAssignedAsDrillerToTenantHole($context->tenantId, $holeId, $originId);
         }
 
         if ($user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value) {
@@ -32,10 +41,12 @@ class TenantHoleProgressPolicy
 
     public function initializeDepth(User $user, TenantContext $context): bool
     {
-        if ($user->isAdmin() || $context->role === UserRole::Admin->value) {
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
             return true;
         }
 
-        return $user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value;
+        return $user->hasPermission('progress.initialize_depth', $context->tenantId)
+            || $user->role === UserRole::Supervisor
+            || $context->role === UserRole::Supervisor->value;
     }
 }

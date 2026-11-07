@@ -33,7 +33,11 @@ class DrillHolePolicy
 
     public function updateTechnicalData(User $user, DrillHole $drillHole): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasPermission('drill_holes.update_technical_data')) {
             return true;
         }
 
@@ -65,7 +69,11 @@ class DrillHolePolicy
 
     public function assignPersonnel(User $user, DrillHole $drillHole): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($user->hasPermission('assignments.manage')) {
             return true;
         }
 
@@ -74,8 +82,15 @@ class DrillHolePolicy
 
     public function logProgress(User $user, DrillHole $drillHole): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($user->hasPermission('progress.create')) {
+            if ($user->canViewAll()) {
+                return true;
+            }
+            return $user->isAssignedToHole($drillHole);
         }
 
         if ($user->role === UserRole::Driller) {

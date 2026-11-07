@@ -40,4 +40,14 @@ class Tenant extends Model
     {
         return $this->hasMany(TenantHoleProgressLog::class);
     }
+
+    public function roles(): HasMany
+    {
+        return $this->hasMany(Role::class);
+    }
+
+    public function userGroups(): HasMany
+    {
+        return $this->hasMany(UserGroup::class);
+    }
 }

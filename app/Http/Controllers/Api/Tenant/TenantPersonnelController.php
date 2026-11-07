@@ -45,7 +45,20 @@ class TenantPersonnelController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:128'],
             'email' => ['required', 'email', 'max:128'],
-            'role' => ['required', 'string', Rule::in(['driller', 'helper', 'geologist', 'supervisor', 'geotechnical', 'admin'])],
+            'role' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) use ($context) {
+                    $allowed = ['driller', 'helper', 'geologist', 'supervisor', 'geotechnical', 'admin'];
+                    if (in_array($value, $allowed, true)) {
+                        return;
+                    }
+                    $exists = \App\Models\Role::forTenant($context->tenantId)->where('slug', $value)->exists();
+                    if (! $exists) {
+                        $fail('El rol seleccionado no es válido para esta organización.');
+                    }
+                },
+            ],
             'external_hr_id' => ['nullable', 'string', 'max:64'],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
@@ -81,7 +94,23 @@ class TenantPersonnelController extends Controller
 
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:128'],
-            'role' => ['nullable', 'string', Rule::in(['driller', 'helper', 'geologist', 'supervisor', 'geotechnical', 'admin'])],
+            'role' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) use ($context) {
+                    if (! $value) {
+                        return;
+                    }
+                    $allowed = ['driller', 'helper', 'geologist', 'supervisor', 'geotechnical', 'admin'];
+                    if (in_array($value, $allowed, true)) {
+                        return;
+                    }
+                    $exists = \App\Models\Role::forTenant($context->tenantId)->where('slug', $value)->exists();
+                    if (! $exists) {
+                        $fail('El rol seleccionado no es válido para esta organización.');
+                    }
+                },
+            ],
             'external_hr_id' => ['nullable', 'string', 'max:64'],
         ]);
 
