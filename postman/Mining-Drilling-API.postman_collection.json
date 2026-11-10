@@ -6,18 +6,102 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://127.0.0.1:8000/api" },
-    { "key": "token", "value": "" },
-    { "key": "user_id", "value": "" },
-    { "key": "plan_id", "value": "1" },
-    { "key": "platform_id", "value": "1" },
-    { "key": "drill_hole_id", "value": "1" },
-    { "key": "assignment_id", "value": "" },
-    { "key": "progress_id", "value": "" },
-    { "key": "observation_id", "value": "1" },
-    { "key": "risk_id", "value": "" },
-    { "key": "machine_id", "value": "" },
-    { "key": "import_id", "value": "" }
+    {
+      "key": "base_url",
+      "value": "https://api.undsurf.com/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "plan_id",
+      "value": "1"
+    },
+    {
+      "key": "platform_id",
+      "value": "1"
+    },
+    {
+      "key": "drill_hole_id",
+      "value": "1"
+    },
+    {
+      "key": "assignment_id",
+      "value": ""
+    },
+    {
+      "key": "progress_id",
+      "value": ""
+    },
+    {
+      "key": "observation_id",
+      "value": "1"
+    },
+    {
+      "key": "risk_id",
+      "value": ""
+    },
+    {
+      "key": "machine_id",
+      "value": ""
+    },
+    {
+      "key": "import_id",
+      "value": ""
+    },
+    {
+      "key": "token_driller",
+      "value": ""
+    },
+    {
+      "key": "token_supervisor",
+      "value": ""
+    },
+    {
+      "key": "token_geologist",
+      "value": ""
+    },
+    {
+      "key": "progress_log_id",
+      "value": ""
+    },
+    {
+      "key": "email_driller",
+      "value": "perforista@undsurf.com"
+    },
+    {
+      "key": "password_driller",
+      "value": "password"
+    },
+    {
+      "key": "email_supervisor",
+      "value": "supervisor@undsurf.com"
+    },
+    {
+      "key": "password_supervisor",
+      "value": "password"
+    },
+    {
+      "key": "email_geologist",
+      "value": "geologo@undsurf.com"
+    },
+    {
+      "key": "password_geologist",
+      "value": "password"
+    },
+    {
+      "key": "email_admin",
+      "value": "admin@undsurf.com"
+    },
+    {
+      "key": "password_admin",
+      "value": "password"
+    }
   ],
   "item": [
     {
@@ -28,7 +112,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{base_url}}/health",
             "description": "Público. Sin Authorization."
@@ -61,8 +148,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -77,8 +170,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/auth/me",
             "description": "Protegido. Requiere Bearer token."
@@ -89,8 +188,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/auth/logout",
             "description": "Protegido. Elimina el token actual (Sanctum)."
@@ -106,8 +211,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/dashboard/summary",
             "description": "Resumen operativo filtrado por rol."
@@ -123,8 +234,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans",
             "description": "Lista planes. Actualizar plan_id tras la respuesta."
@@ -135,8 +252,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans/{{plan_id}}",
             "description": "Detalle de un plan."
@@ -147,8 +270,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans/{{plan_id}}/platforms",
             "description": "Plataformas del plan. Actualizar platform_id."
@@ -159,8 +288,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans/{{plan_id}}/available-machines",
             "description": "Máquinas disponibles para el plan."
@@ -171,8 +306,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans/{{plan_id}}/files",
             "description": "Archivos asociados al plan (también cubierto en carpeta 12)."
@@ -188,8 +329,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-platforms/{{platform_id}}",
             "description": "Detalle de plataforma."
@@ -205,8 +352,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drill-holes",
             "description": "Lista pozos (filtrada por rol/asignación)."
@@ -217,9 +370,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -234,8 +396,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drill-holes/{{drill_hole_id}}",
             "description": "Detalle de pozo."
@@ -246,9 +414,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -268,9 +445,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -290,9 +476,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -312,8 +507,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drill-holes/{{drill_hole_id}}/observations",
             "description": "Lista observaciones del pozo."
@@ -324,9 +525,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -346,9 +556,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -363,8 +582,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/risks",
             "description": "GET /risks — listado global de riesgos."
@@ -375,9 +600,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -397,8 +631,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/machines",
             "description": "Cualquier autenticado (solo auth:sanctum)."
@@ -414,8 +654,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drilling-plans/{{plan_id}}/files",
             "description": "GET /drilling-plans/{plan}/files."
@@ -431,9 +677,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -448,9 +703,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -465,8 +729,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/imports",
             "description": "Listado de importaciones CSV."
@@ -483,7 +753,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{base_url}}/auth/me",
             "description": "Caso: GET /auth/me sin Authorization.\n\nResultado esperado según código: 401 (auth:sanctum).\nResultado real:\nPendiente de completar manualmente."
@@ -494,7 +767,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{base_url}}/dashboard/summary",
             "description": "Caso: endpoint protegido (dashboard) sin Bearer token.\n\nResultado esperado según código: 401 (auth:sanctum).\nResultado real:\nPendiente de completar manualmente."
@@ -505,8 +781,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -521,8 +803,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -537,9 +825,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -554,9 +851,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -571,9 +877,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -588,9 +903,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -605,9 +929,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -622,9 +955,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -639,8 +981,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/auth/me",
             "description": "Caso: tras Logout exitoso, reutilizar el mismo Bearer token en GET /auth/me.\n\nResultado esperado según código: 401 (token eliminado).\nResultado real:\nPendiente de completar manualmente."
@@ -651,8 +999,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/drill-holes/{{drill_hole_id}}",
             "description": "Caso: login como driller@app.test y GET de un pozo al que NO está asignado (ajustar drill_hole_id).\n\nResultado esperado según código: 403 (DrillHolePolicy::view / isAssignedToHole).\nResultado real:\nPendiente de completar manualmente."
@@ -669,8 +1023,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -685,9 +1045,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -702,9 +1071,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -719,9 +1097,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -736,9 +1123,18 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -753,9 +1149,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -770,9 +1175,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -787,9 +1201,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -804,9 +1227,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -821,9 +1253,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -844,8 +1285,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/memberships",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: listar membresías del usuario autenticado tras login central."
@@ -856,9 +1303,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -873,8 +1329,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/current",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: devolver el tenant activo resuelto por el servidor."
@@ -885,8 +1347,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/drilling-plans",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: planes operativos deben vivir en DB/schema por tenant."
@@ -897,8 +1365,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/drill-holes",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: pozos aislados por tenant; IDs no deben filtrar datos de otra empresa."
@@ -909,8 +1383,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/drill-holes/foreign-id",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: acceso a recurso de otro tenant debe fallar (404/403), nunca filtrar datos cruzados."
@@ -921,9 +1401,18 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -938,8 +1427,14 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/memberships/placeholder",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: revocación de membresía y tokens scoped al tenant."
@@ -950,8 +1445,14 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/files",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: archivos bajo prefijo /tenants/{id}/."
@@ -962,12 +1463,599 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/__future__/multi-tenant/audit-logs",
             "description": "NO IMPLEMENTADO — CONTRATO MULTI-TENANT FUTURO: auditoría con aislamiento por tenant (hoy AuditLog no tiene tenant_id ni endpoints HTTP)."
           }
+        }
+      ]
+    },
+    {
+      "name": "18 Fase 1 - Parte Diario, Turnos Mineros & Loguera RQD",
+      "description": "Endpoints de la Fase 1:\n- Parte diario con hours_worked (máx 8hs) y estado pending_review.\n- Bandeja y circuito de revisión/aprobación por supervisor.\n- Validación de ventana de voladuras y ventilación (00:00 - 08:00).\n- Loguera de testigos geológicos y cálculo automático de RQD.",
+      "item": [
+        {
+          "name": "00 Auth (Logins por Rol)",
+          "item": [
+            {
+              "name": "Login Perforista",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "if (json.token) {",
+                      "    pm.environment.set(\"token_driller\", json.token);",
+                      "    pm.collectionVariables.set(\"token_driller\", json.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email_driller}}\",\n  \"password\": \"{{password_driller}}\"\n}"
+                },
+                "url": "{{base_url}}/auth/login"
+              }
+            },
+            {
+              "name": "Login Supervisor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "if (json.token) {",
+                      "    pm.environment.set(\"token_supervisor\", json.token);",
+                      "    pm.collectionVariables.set(\"token_supervisor\", json.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email_supervisor}}\",\n  \"password\": \"{{password_supervisor}}\"\n}"
+                },
+                "url": "{{base_url}}/auth/login"
+              }
+            },
+            {
+              "name": "Login Geólogo",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "if (json.token) {",
+                      "    pm.environment.set(\"token_geologist\", json.token);",
+                      "    pm.collectionVariables.set(\"token_geologist\", json.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email_geologist}}\",\n  \"password\": \"{{password_geologist}}\"\n}"
+                },
+                "url": "{{base_url}}/auth/login"
+              }
+            },
+            {
+              "name": "Login Administrador",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "if (json.token) {",
+                      "    pm.environment.set(\"token_admin\", json.token);",
+                      "    pm.collectionVariables.set(\"token_admin\", json.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"password\": \"{{password_admin}}\"\n}"
+                },
+                "url": "{{base_url}}/auth/login"
+              }
+            }
+          ]
+        },
+        {
+          "name": "01 Perforista (Parte Diario y Turnos)",
+          "item": [
+            {
+              "name": "Registrar Parte Diario (depth_from, depth_to, hours_worked)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 201 Created\", () => pm.expect(pm.response.code).to.eql(201));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Estado inicial es pending_review\", () => {",
+                      "    pm.expect(json.data.status).to.eql(\"pending_review\");",
+                      "});",
+                      "pm.test(\"Registra horas trabajadas\", () => {",
+                      "    pm.expect(Number(json.data.hours_worked)).to.eql(8);",
+                      "});",
+                      "if (json.data && json.data.id) {",
+                      "    pm.environment.set(\"progress_log_id\", String(json.data.id));",
+                      "    pm.collectionVariables.set(\"progress_log_id\", String(json.data.id));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"depth_from\": 0,\n  \"depth_to\": 3,\n  \"hours_worked\": 8,\n  \"logged_at\": \"2026-11-10 10:00:00\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+              }
+            },
+            {
+              "name": "Validacion: Exceso de 8 hs por turno (Falla 422)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"depth_from\": 3,\n  \"depth_to\": 6,\n  \"hours_worked\": 9,\n  \"logged_at\": \"2026-11-10 12:00:00\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+              }
+            },
+            {
+              "name": "Validacion: Ventana de Voladuras (00:00 - 08:00) (Falla 422)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Mensaje explicito de voladura\", () => {",
+                      "    pm.expect(JSON.stringify(json.errors)).to.include(\"voladuras\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"depth_from\": 3,\n  \"depth_to\": 5,\n  \"hours_worked\": 4,\n  \"logged_at\": \"2026-11-10 03:30:00\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Supervisor (Revision y Aprobacion)",
+          "item": [
+            {
+              "name": "Consultar Partes Pendientes de Revision",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Retorna array de partes pendientes\", () => {",
+                      "    pm.expect(json.data).to.be.an(\"array\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_supervisor}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/progress/pending"
+              }
+            },
+            {
+              "name": "Rechazo sin Motivo (Falla 422 - Motivo Obligatorio)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_supervisor}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\"\n}"
+                },
+                "url": "{{base_url}}/tenant/progress/{{progress_log_id}}/review"
+              }
+            },
+            {
+              "name": "Aprobar Parte Diario",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Estado cambia a approved\", () => {",
+                      "    pm.expect(json.data.status).to.eql(\"approved\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_supervisor}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\",\n  \"review_notes\": \"Metraje verificado conforme a turno diurno.\"\n}"
+                },
+                "url": "{{base_url}}/tenant/progress/{{progress_log_id}}/review"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Geologo (Loguera de Testigos y RQD)",
+          "item": [
+            {
+              "name": "Asentar Corrida en Loguera (Calculo RQD Automatico)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 201 Created\", () => pm.expect(pm.response.code).to.eql(201));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Calcula RQD % y recuperacion\", () => {",
+                      "    pm.expect(json.data.rqd_percentage).to.be.a(\"number\");",
+                      "    pm.expect(json.data.recovery_percentage).to.be.a(\"number\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_geologist}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"run_from\": 0,\n  \"run_to\": 3,\n  \"recovered_meters\": 2.8,\n  \"rqd_meters\": 2.1,\n  \"box_number\": 1\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+              }
+            },
+            {
+              "name": "Validacion: Testigo recuperado mayor a corrida (Falla 422)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_geologist}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"run_from\": 3,\n  \"run_to\": 6,\n  \"recovered_meters\": 5,\n  \"rqd_meters\": 2\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+              }
+            },
+            {
+              "name": "Historial de Testigos y RQD de Pozo",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Retorna array de corridas\", () => pm.expect(json.data).to.be.an(\"array\"));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_geologist}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Control de Acceso por Roles (Seguridad)",
+          "item": [
+            {
+              "name": "Perforista intenta ver bandeja de supervisor (Falla 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 403 Forbidden para Perforista\", () => pm.expect(pm.response.code).to.eql(403));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/progress/pending"
+              }
+            },
+            {
+              "name": "Perforista intenta asentar en loguera (Falla 403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 403 Forbidden para Perforista\", () => pm.expect(pm.response.code).to.eql(403));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"run_from\": 0,\n  \"run_to\": 3,\n  \"recovered_meters\": 2.5,\n  \"rqd_meters\": 1.8\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+              }
+            }
+          ]
         }
       ]
     }
