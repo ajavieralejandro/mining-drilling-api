@@ -26,11 +26,17 @@ class TenantHoleProgressLogResource extends JsonResource
             'depth_current' => $depthCurrent,
             'advance_meters' => bcsub($depthTo, $depthFrom, 2),
             'shift' => $this->shift,
+            'hours_worked' => $this->hours_worked !== null ? sprintf('%.2f', $this->hours_worked) : null,
+            'status' => $this->status ?? 'pending_review',
+            'reviewed_by' => $this->reviewed_by,
+            'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'review_notes' => $this->review_notes,
             'idempotency_key' => $this->idempotency_key,
             'crew_snapshot' => $this->crew_snapshot,
             'logged_at' => $this->logged_at?->toIso8601String(),
             'observations' => $this->observations,
             'user' => new UserResource($this->whenLoaded('user')),
+            'reviewer' => new UserResource($this->whenLoaded('reviewer')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

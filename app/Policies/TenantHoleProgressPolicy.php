@@ -49,4 +49,26 @@ class TenantHoleProgressPolicy
             || $user->role === UserRole::Supervisor
             || $context->role === UserRole::Supervisor->value;
     }
+
+    public function review(User $user, TenantContext $context): bool
+    {
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
+            return true;
+        }
+
+        return $user->hasPermission('progress.approve', $context->tenantId)
+            || $user->role === UserRole::Supervisor
+            || $context->role === UserRole::Supervisor->value;
+    }
+
+    public function logCores(User $user, TenantContext $context): bool
+    {
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
+            return true;
+        }
+
+        return $user->hasPermission('geology.log_cores', $context->tenantId)
+            || $user->role === UserRole::Geologist
+            || $context->role === UserRole::Geologist->value;
+    }
 }

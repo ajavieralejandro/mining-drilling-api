@@ -39,7 +39,11 @@ class RbacSeeder extends Seeder
             // Avance
             ['name' => 'progress.view', 'module' => 'avances', 'description' => 'Ver historial y planillas de avance de perforación'],
             ['name' => 'progress.create', 'module' => 'avances', 'description' => 'Registrar avance de perforación diario'],
+            ['name' => 'progress.approve', 'module' => 'avances', 'description' => 'Revisar, aprobar o rechazar partes diarios de perforación'],
             ['name' => 'progress.initialize_depth', 'module' => 'avances', 'description' => 'Inicializar o recalibrar profundidad base de pozo'],
+
+            // Geología & Loguera
+            ['name' => 'geology.log_cores', 'module' => 'geologia', 'description' => 'Asentar corridas de testigos y cálculo de RQD en loguera'],
 
             // Observaciones
             ['name' => 'observations.view', 'module' => 'observaciones', 'description' => 'Ver libro de novedades y notas geológicas'],
@@ -117,7 +121,9 @@ class RbacSeeder extends Seeder
                     'assignments.manage',
                     'progress.view',
                     'progress.create',
+                    'progress.approve',
                     'progress.initialize_depth',
+                    'geology.log_cores',
                     'observations.view',
                     'observations.create',
                     'risks.view',
@@ -147,6 +153,7 @@ class RbacSeeder extends Seeder
                     'assignments.manage',
                     'progress.view',
                     'progress.create',
+                    'progress.approve',
                     'progress.initialize_depth',
                     'observations.view',
                     'observations.create',
@@ -173,6 +180,7 @@ class RbacSeeder extends Seeder
                     'drill_holes.update',
                     'drill_holes.update_technical_data',
                     'progress.view',
+                    'geology.log_cores',
                     'observations.view',
                     'observations.create',
                     'risks.view',

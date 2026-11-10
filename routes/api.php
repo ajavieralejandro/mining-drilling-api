@@ -136,6 +136,14 @@ Route::middleware([
     Route::post('/holes/{hole}/progress', [TenantHoleProgressController::class, 'store']);
     Route::post('/holes/{hole}/initialize-depth', [TenantHoleProgressController::class, 'initializeDepth']);
 
+    // Circuito de Revisión y Aprobación por Supervisor
+    Route::get('/progress/pending', [TenantHoleProgressController::class, 'pending']);
+    Route::post('/progress/{id}/review', [TenantHoleProgressController::class, 'review']);
+
+    // Loguera de Testigos y Cálculo de RQD por Geólogo
+    Route::get('/holes/{hole}/core-logs', [TenantHoleProgressController::class, 'coreLogsIndex']);
+    Route::post('/holes/{hole}/core-logs', [TenantHoleProgressController::class, 'coreLogsStore']);
+
     // Grupos de usuarios del Tenant
     Route::get('/groups', [TenantGroupController::class, 'index']);
     Route::post('/groups', [TenantGroupController::class, 'store']);

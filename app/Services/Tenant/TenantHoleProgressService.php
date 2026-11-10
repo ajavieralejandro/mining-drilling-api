@@ -2,6 +2,7 @@
 
 namespace App\Services\Tenant;
 
+use App\Models\TenantCoreLog;
 use App\Models\TenantHoleProgressLog;
 use App\Support\TenantContext;
 use Carbon\Carbon;
@@ -23,11 +24,66 @@ class TenantHoleProgressService
      */
     public function listProgress(string $tenantId, string $originId, string $holeId, int $perPage = 15, int $page = 1): LengthAwarePaginator
     {
-        return TenantHoleProgressLog::with('user')
+        return TenantHoleProgressLog::with(['user', 'reviewer'])
             ->forWell($tenantId, $originId, $holeId)
             ->orderByDesc('logged_at')
             ->orderByDesc('created_at')
             ->paginate(perPage: $perPage, page: $page);
+    }
+
+    /**
+     * Lista los partes diarios en estado pendiente de revisión (pending_review) para el supervisor.
+     */
+    public function listPendingProgress(
+        string $tenantId,
+        ?string $originId = null,
+        ?string $holeId = null,
+        int $perPage = 15,
+        int $page = 1
+    ): LengthAwarePaginator {
+        $query = TenantHoleProgressLog::with(['user', 'operationalState'])
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'pending_review');
+
+        if ($originId !== null && trim($originId) !== '') {
+            $query->where('origin_id', $originId);
+        }
+
+        if ($holeId !== null && trim($holeId) !== '') {
+            $query->where('hole_id', $holeId);
+        }
+
+        return $query->orderByDesc('logged_at')
+            ->orderByDesc('created_at')
+            ->paginate(perPage: $perPage, page: $page);
+    }
+
+    /**
+     * Revisa y aprueba o rechaza un parte diario registrado por el perforista.
+     */
+    public function reviewProgress(
+        string $tenantId,
+        string $progressId,
+        string $action,
+        ?string $notes,
+        int $reviewerUserId
+    ): TenantHoleProgressLog {
+        return DB::transaction(function () use ($tenantId, $progressId, $action, $notes, $reviewerUserId) {
+            $log = TenantHoleProgressLog::query()
+                ->where('tenant_id', $tenantId)
+                ->where('id', $progressId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $newStatus = $action === 'approve' ? 'approved' : 'rejected';
+            $log->status = $newStatus;
+            $log->reviewed_by = $reviewerUserId;
+            $log->reviewed_at = now();
+            $log->review_notes = $notes;
+            $log->save();
+
+            return $log->load(['user', 'reviewer']);
+        });
     }
 
     /**
@@ -46,6 +102,7 @@ class TenantHoleProgressService
         // Normalización estricta de cotas y datos de entrada
         $depthFrom = sprintf('%.2f', $data['depth_from']);
         $depthTo = sprintf('%.2f', $data['depth_to']);
+        $hoursWorked = isset($data['hours_worked']) ? sprintf('%.2f', $data['hours_worked']) : null;
         $shift = isset($data['shift']) && is_string($data['shift']) ? strtoupper(trim($data['shift'])) : null;
         $loggedAt = isset($data['logged_at']) ? Carbon::parse($data['logged_at'])->toISOString() : now()->toISOString();
         $observations = isset($data['observations']) && is_string($data['observations']) && trim($data['observations']) !== ''
@@ -55,6 +112,7 @@ class TenantHoleProgressService
         $normalizedContent = [
             'depth_from' => $depthFrom,
             'depth_to' => $depthTo,
+            'hours_worked' => $hoursWorked,
             'shift' => $shift,
             'logged_at' => $loggedAt,
             'observations' => $observations,
@@ -63,7 +121,7 @@ class TenantHoleProgressService
         $payloadHash = hash('sha256', json_encode($normalizedContent, JSON_THROW_ON_ERROR));
 
         // 1. Verificación previa de idempotencia (Fast path tras autorización)
-        $existing = TenantHoleProgressLog::with('user')
+        $existing = TenantHoleProgressLog::with(['user', 'reviewer'])
             ->where('tenant_id', $context->tenantId)
             ->where('idempotency_key', $idempotencyKey)
             ->first();
@@ -85,9 +143,9 @@ class TenantHoleProgressService
 
         // 2. Transacción atómica con reintentos para soportar PostgreSQL, MySQL y SQLite
         try {
-            return DB::transaction(function () use ($context, $originId, $holeId, $data, $idempotencyKey, $payloadHash, $depthFrom, $depthTo, $shift, $loggedAt, $observations, $gatewayHoleItem) {
+            return DB::transaction(function () use ($context, $originId, $holeId, $data, $idempotencyKey, $payloadHash, $depthFrom, $depthTo, $hoursWorked, $shift, $loggedAt, $observations, $gatewayHoleItem) {
                 // Re-verificación atómica bajo lock para carreras concurrentes de idempotencia
-                $existingCheck = TenantHoleProgressLog::with('user')
+                $existingCheck = TenantHoleProgressLog::with(['user', 'reviewer'])
                     ->where('tenant_id', $context->tenantId)
                     ->where('idempotency_key', $idempotencyKey)
                     ->lockForUpdate()
@@ -160,7 +218,7 @@ class TenantHoleProgressService
                 // Capturar snapshot inmutable de las asignaciones activas aplicables a este avance
                 $crewSnapshot = $this->assignmentService->getActiveCrewSnapshot($context->tenantId, $originId, $holeId);
 
-                // Asentar el parte diario
+                // Asentar el parte diario (estado por defecto: pending_review)
                 $log = TenantHoleProgressLog::create([
                     'tenant_id' => $context->tenantId,
                     'operational_state_id' => $state->id,
@@ -170,7 +228,9 @@ class TenantHoleProgressService
                     'depth_from' => $depthFrom,
                     'depth_to' => $depthTo,
                     'depth_current' => $depthTo,
+                    'hours_worked' => $hoursWorked,
                     'shift' => $shift,
+                    'status' => 'pending_review',
                     'idempotency_key' => $idempotencyKey,
                     'payload_hash' => $payloadHash,
                     'crew_snapshot' => $crewSnapshot,
@@ -183,14 +243,14 @@ class TenantHoleProgressService
                 $state->save();
 
                 return [
-                    'progress' => $log->load('user'),
+                    'progress' => $log->load(['user', 'reviewer']),
                     'idempotent_replay' => false,
                 ];
             }, attempts: 5);
         } catch (QueryException $e) {
             // Manejar carrera en la restricción única de idempotencia sin devolver 500
             if ($this->isExpectedIdempotencyCollision($e)) {
-                $existingCheck = TenantHoleProgressLog::with('user')
+                $existingCheck = TenantHoleProgressLog::with(['user', 'reviewer'])
                     ->where('tenant_id', $context->tenantId)
                     ->where('idempotency_key', $idempotencyKey)
                     ->first();
@@ -207,6 +267,58 @@ class TenantHoleProgressService
 
             throw $e;
         }
+    }
+
+    /**
+     * Lista el historial de testigos y RQD en loguera de geología.
+     */
+    public function listCoreLogs(
+        string $tenantId,
+        string $originId,
+        string $holeId,
+        int $perPage = 25,
+        int $page = 1
+    ): LengthAwarePaginator {
+        return TenantCoreLog::with('loggedByUser')
+            ->forWell($tenantId, $originId, $holeId)
+            ->orderByDesc('run_from')
+            ->paginate(perPage: $perPage, page: $page);
+    }
+
+    /**
+     * Asienta un nuevo tramo en loguera calculando RQD y porcentaje recuperado.
+     */
+    public function recordCoreLog(
+        TenantContext $context,
+        string $originId,
+        string $holeId,
+        array $data
+    ): TenantCoreLog {
+        $metrics = TenantCoreLog::calculateMetrics(
+            $data['run_from'],
+            $data['run_to'],
+            $data['recovered_meters'],
+            $data['rqd_meters']
+        );
+
+        $loggedAt = isset($data['logged_at']) ? Carbon::parse($data['logged_at'])->toISOString() : now()->toISOString();
+
+        return TenantCoreLog::create([
+            'tenant_id' => $context->tenantId,
+            'origin_id' => $originId,
+            'hole_id' => $holeId,
+            'box_number' => isset($data['box_number']) ? trim((string) $data['box_number']) : null,
+            'run_from' => sprintf('%.2f', $data['run_from']),
+            'run_to' => sprintf('%.2f', $data['run_to']),
+            'drill_length' => $metrics['drill_length'],
+            'recovered_meters' => $metrics['recovered_meters'],
+            'rqd_meters' => $metrics['rqd_meters'],
+            'rqd_percentage' => $metrics['rqd_percentage'],
+            'core_loss_meters' => $metrics['core_loss_meters'],
+            'logged_by' => $context->userId,
+            'logged_at' => $loggedAt,
+            'geology_notes' => isset($data['geology_notes']) && trim((string) $data['geology_notes']) !== '' ? trim((string) $data['geology_notes']) : null,
+        ])->load('loggedByUser');
     }
 
     private function isExpectedIdempotencyCollision(QueryException $e): bool

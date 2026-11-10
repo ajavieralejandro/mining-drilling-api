@@ -24,6 +24,11 @@ class TenantHoleProgressLog extends Model
         'depth_to',
         'depth_current',
         'shift',
+        'hours_worked',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'review_notes',
         'idempotency_key',
         'payload_hash',
         'crew_snapshot',
@@ -37,8 +42,10 @@ class TenantHoleProgressLog extends Model
             'depth_from' => 'decimal:2',
             'depth_to' => 'decimal:2',
             'depth_current' => 'decimal:2',
+            'hours_worked' => 'decimal:2',
             'crew_snapshot' => 'array',
             'logged_at' => 'datetime',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -55,6 +62,21 @@ class TenantHoleProgressLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function scopePendingReview(Builder $query): Builder
+    {
+        return $query->where('status', 'pending_review');
+    }
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('status', 'approved');
     }
 
     public function scopeForWell(Builder $query, string $tenantId, string $originId, string $holeId): Builder

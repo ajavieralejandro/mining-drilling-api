@@ -1,0 +1,509 @@
+{
+  "info": {
+    "_postman_id": "c1f2e3d4-b5a6-7890-1234-567890abcdef",
+    "name": "UndSurf — Fase 1: Parte Diario, Turnos Mineros & Loguera RQD",
+    "description": "Colección de pruebas para la Fase 1 de UndSurf:\n\n1. Parte diario minimalista del perforista (depth_from, depth_to, hours_worked) y estado inicial pending_review.\n2. Circuito de supervisión: bandeja de pendientes y aprobación/rechazo con notas.\n3. Turnos mineros (máx 8 hs por turno) y restricción estricta de ventana de voladuras/ventilación (00:00 - 08:00).\n4. Módulo de loguera de testigos para geólogos con cálculo automático de % RQD.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api" },
+    { "key": "token_driller", "value": "" },
+    { "key": "token_supervisor", "value": "" },
+    { "key": "token_geologist", "value": "" },
+    { "key": "token_admin", "value": "" },
+    { "key": "hole_id", "value": "1001" },
+    { "key": "progress_log_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 Auth (Logins por Rol)",
+      "item": [
+        {
+          "name": "Login Perforista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.expect(pm.response.code).to.eql(200);",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token_driller', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driller@app.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Login Supervisor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.expect(pm.response.code).to.eql(200);",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token_supervisor', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"supervisor@app.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Login Geólogo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.expect(pm.response.code).to.eql(200);",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token_geologist', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"geologist@app.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        },
+        {
+          "name": "Login Administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.expect(pm.response.code).to.eql(200);",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set('token_admin', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@app.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Perforista (Parte Diario & Validaciones Mineras)",
+      "item": [
+        {
+          "name": "POST Registrar Parte Diario (Datos Básicos: from, to, hours_worked)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Código 200 o 201', () => {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test('Queda en estado pending_review', () => {",
+                  "    pm.expect(json.data.status).to.eql('pending_review');",
+                  "});",
+                  "pm.test('Registra horas trabajadas', () => {",
+                  "    pm.expect(json.data.hours_worked).to.eql('7.50');",
+                  "});",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('progress_log_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_driller}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 0.0,\n  \"depth_to\": 4.5,\n  \"hours_worked\": 7.5,\n  \"shift\": \"Turno 1\",\n  \"idempotency_key\": \"idem-{{$timestamp}}-1\",\n  \"logged_at\": \"2026-11-10T12:00:00Z\",\n  \"observations\": \"Turno 1: perforación normal sin desviaciones.\"\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+          }
+        },
+        {
+          "name": "POST Validación: Exceso de 8 hs por turno (Falla 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazo 422 por superar 8 hs de turno minero', () => {",
+                  "    pm.expect(pm.response.code).to.eql(422);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Mensaje de error en hours_worked', () => {",
+                  "    pm.expect(json.errors.hours_worked).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_driller}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 4.5,\n  \"depth_to\": 10.0,\n  \"hours_worked\": 10.0,\n  \"shift\": \"Turno 1\",\n  \"idempotency_key\": \"idem-{{$timestamp}}-exceed\",\n  \"logged_at\": \"2026-11-10T14:00:00Z\"\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+          }
+        },
+        {
+          "name": "POST Validación: Ventana de Voladuras y Ventilación (00:00 - 08:00) (Falla 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazo 422 por horario de voladura/ventilación', () => {",
+                  "    pm.expect(pm.response.code).to.eql(422);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Error menciona ventana de voladura', () => {",
+                  "    pm.expect(json.errors.logged_at[0]).to.include('voladura y ventilación');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_driller}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"depth_from\": 4.5,\n  \"depth_to\": 8.0,\n  \"hours_worked\": 6.0,\n  \"shift\": \"Turno 2\",\n  \"idempotency_key\": \"idem-{{$timestamp}}-blast\",\n  \"logged_at\": \"2026-11-10T03:30:00Z\"\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Supervisor (Bandeja de Aprobación)",
+      "item": [
+        {
+          "name": "GET Bandeja de Partes Pendientes de Revisión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 200 OK', () => {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Retorna lista de partes pendientes', () => {",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_supervisor}}" }
+            ],
+            "url": "{{base_url}}/tenant/progress/pending"
+          }
+        },
+        {
+          "name": "POST Rechazo sin Motivo (Falla 422 - Motivo Obligatorio)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazo 422 por falta de motivo de rechazo', () => {",
+                  "    pm.expect(pm.response.code).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_supervisor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\"\n}"
+            },
+            "url": "{{base_url}}/tenant/progress/{{progress_log_id}}/review"
+          }
+        },
+        {
+          "name": "POST Aprobar Parte Diario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 200 OK', () => {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Estado actualizado a approved', () => {",
+                  "    pm.expect(json.data.status).to.eql('approved');",
+                  "    pm.expect(json.data.reviewed_by).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_supervisor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"review_notes\": \"Verificado y aprobado conforme reporte de cuadrilla.\"\n}"
+            },
+            "url": "{{base_url}}/tenant/progress/{{progress_log_id}}/review"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Geólogo (Loguera de Testigos & RQD)",
+      "item": [
+        {
+          "name": "POST Asentar Corrida en Loguera (Cálculo RQD Automático)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 201 Created', () => {",
+                  "    pm.expect(pm.response.code).to.eql(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Largo perforado calculado (run_to - run_from = 3.00 m)', () => {",
+                  "    pm.expect(json.data.drill_length).to.eql('3.00');",
+                  "});",
+                  "pm.test('RQD calculado correctamente ((2.10 / 3.00) * 100 = 70.00%)', () => {",
+                  "    pm.expect(json.data.rqd_percentage).to.eql('70.00');",
+                  "});",
+                  "pm.test('Pérdida de testigo calculada (3.00 - 2.70 = 0.30 m)', () => {",
+                  "    pm.expect(json.data.core_loss_meters).to.eql('0.30');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_geologist}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_from\": 0.0,\n  \"run_to\": 3.0,\n  \"recovered_meters\": 2.7,\n  \"rqd_meters\": 2.1,\n  \"box_number\": \"CAJA-01\",\n  \"logged_at\": \"2026-11-10T15:00:00Z\",\n  \"geology_notes\": \"Testigo recuperado en loguera con litología dacítica.\"\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+          }
+        },
+        {
+          "name": "POST Validación: Testigo recuperado mayor a corrida (Falla 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazo 422 por inconsistencia física', () => {",
+                  "    pm.expect(pm.response.code).to.eql(422);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_geologist}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_from\": 3.0,\n  \"run_to\": 6.0,\n  \"recovered_meters\": 5.0,\n  \"rqd_meters\": 2.0\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+          }
+        },
+        {
+          "name": "GET Historial de Testigos y RQD de Pozo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 200 OK', () => {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.test('Retorna array de corridas', () => {",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_geologist}}" }
+            ],
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Control de Acceso por Roles (Seguridad)",
+      "item": [
+        {
+          "name": "GET Perforista intenta acceder a bandeja de supervisor (Falla 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 403 Forbidden para Perforista', () => {",
+                  "    pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_driller}}" }
+            ],
+            "url": "{{base_url}}/tenant/progress/pending"
+          }
+        },
+        {
+          "name": "POST Perforista intenta asentar loguera geológica (Falla 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 403 Forbidden para Perforista', () => {",
+                  "    pm.expect(pm.response.code).to.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_driller}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_from\": 0.0,\n  \"run_to\": 3.0,\n  \"recovered_meters\": 2.5,\n  \"rqd_meters\": 1.8\n}"
+            },
+            "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
+          }
+        }
+      ]
+    }
+  ]
+}
