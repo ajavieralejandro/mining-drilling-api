@@ -76,7 +76,7 @@
     },
     {
       "key": "password_driller",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "email_supervisor",
@@ -84,7 +84,7 @@
     },
     {
       "key": "password_supervisor",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "email_geologist",
@@ -92,7 +92,7 @@
     },
     {
       "key": "password_geologist",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "email_admin",
@@ -100,15 +100,15 @@
     },
     {
       "key": "password_admin",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "password",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "password_test",
-      "value": ""
+      "value": "UndSurf2026!"
     },
     {
       "key": "token_admin",
@@ -145,6 +145,14 @@
     {
       "key": "token_geotechnical",
       "value": ""
+    },
+    {
+      "key": "password_helper",
+      "value": "UndSurf2026!"
+    },
+    {
+      "key": "password_geotechnical",
+      "value": "UndSurf2026!"
     }
   ],
   "item": [

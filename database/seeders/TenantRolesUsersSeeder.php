@@ -205,11 +205,11 @@ class TenantRolesUsersSeeder extends Seeder
             return [$password, false];
         }
 
-        if (app()->environment('local', 'testing')) {
-            return ['UndSurf2026!', false];
+        if (filter_var(env('UNDSURF_SEED_RANDOM', false), FILTER_VALIDATE_BOOLEAN)) {
+            return [Str::password(16, true, true, false, false), true];
         }
 
-        return [Str::password(16, true, true, false, false), true];
+        return ['UndSurf2026!', false];
     }
 
     private function resolveTenant(): Tenant

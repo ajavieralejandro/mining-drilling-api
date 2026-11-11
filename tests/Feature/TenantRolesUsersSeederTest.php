@@ -167,7 +167,7 @@ class TenantRolesUsersSeederTest extends TestCase
         }
     }
 
-    public function test_seeder_generates_non_hardcoded_password_in_production_when_env_omitted(): void
+    public function test_seeder_uses_default_test_password_in_production_and_random_when_flagged(): void
     {
         $tenant = Tenant::create(['id' => (string) Str::ulid(), 'name' => 'Prod Tenant']);
 
@@ -186,8 +186,24 @@ class TenantRolesUsersSeederTest extends TestCase
             $this->postJson('/api/auth/login', [
                 'email' => 'admin.test@undsurf.com',
                 'password' => 'UndSurf2026!',
+            ])->assertOk();
+
+            putenv('UNDSURF_SEED_RANDOM=true');
+            $_ENV['UNDSURF_SEED_RANDOM'] = 'true';
+            $_SERVER['UNDSURF_SEED_RANDOM'] = 'true';
+
+            $this->artisan('db:seed', [
+                '--class' => TenantRolesUsersSeeder::class,
+                '--force' => true,
+            ])->assertExitCode(0);
+
+            $this->postJson('/api/auth/login', [
+                'email' => 'admin.test@undsurf.com',
+                'password' => 'UndSurf2026!',
             ])->assertStatus(422);
         } finally {
+            putenv('UNDSURF_SEED_RANDOM');
+            unset($_ENV['UNDSURF_SEED_RANDOM'], $_SERVER['UNDSURF_SEED_RANDOM']);
             $this->app['env'] = $originalEnv;
         }
     }
