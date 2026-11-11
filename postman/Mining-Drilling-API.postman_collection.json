@@ -101,6 +101,34 @@
     {
       "key": "password_admin",
       "value": "password"
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "password_test",
+      "value": "UndSurf2026!"
+    },
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "hole_id",
+      "value": "1"
+    },
+    {
+      "key": "next_depth_from",
+      "value": "0"
+    },
+    {
+      "key": "next_depth_to",
+      "value": "3"
+    },
+    {
+      "key": "driller_user_id",
+      "value": ""
     }
   ],
   "item": [
@@ -1480,13 +1508,374 @@
     },
     {
       "name": "18 Fase 1 - Parte Diario, Turnos Mineros & Loguera RQD",
-      "description": "Endpoints de la Fase 1:\n- Parte diario con hours_worked (máx 8hs) y estado pending_review.\n- Bandeja y circuito de revisión/aprobación por supervisor.\n- Validación de ventana de voladuras y ventilación (00:00 - 08:00).\n- Loguera de testigos geológicos y cálculo automático de RQD.",
+      "description": "Endpoints de la Fase 1 (soporta login con email_admin + password para pruebas parciales o setup multi-rol).",
       "item": [
         {
-          "name": "00 Auth (Logins por Rol)",
+          "name": "00 Auth y Descubrimiento (Paso Inicial - Solo Admin)",
+          "description": "Ejecutá esta carpeta primero usando tu usuario Admin existente (email_admin y password en el Environment).\n\nAl hacer Login Administrador, se autocompletan los tokens de los demás roles para que puedas hacer pruebas parciales del flujo completo sin esperar a crear otros usuarios.",
           "item": [
             {
-              "name": "Login Perforista",
+              "name": "1. Login Administrador (email_admin + password)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Retorna token Bearer\", () => pm.expect(json.token).to.be.a(\"string\").and.not.empty);",
+                      "if (json.token) {",
+                      "    pm.environment.set(\"token_admin\", json.token);",
+                      "    pm.collectionVariables.set(\"token_admin\", json.token);",
+                      "    // Modo pruebas parciales: permite ejecutar carpetas 01, 02 y 03 solo con Admin",
+                      "    pm.environment.set(\"token_driller\", json.token);",
+                      "    pm.environment.set(\"token_supervisor\", json.token);",
+                      "    pm.environment.set(\"token_geologist\", json.token);",
+                      "    pm.collectionVariables.set(\"token_driller\", json.token);",
+                      "    pm.collectionVariables.set(\"token_supervisor\", json.token);",
+                      "    pm.collectionVariables.set(\"token_geologist\", json.token);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"password\": \"{{password}}\"\n}"
+                },
+                "url": "{{base_url}}/auth/login",
+                "description": "Inicia sesión con tu cuenta Admin de producción (variables email_admin y password) y habilita pruebas parciales automáticas."
+              }
+            },
+            {
+              "name": "2. Listar Pozos del Tenant (Auto-selecciona hole_id)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Retorna lista de pozos\", () => pm.expect(json.data).to.be.an(\"array\"));",
+                      "if (Array.isArray(json.data) && json.data.length > 0) {",
+                      "    const operable = json.data.find(h => String(h.status || \"\").toLowerCase() === \"in_progress\") || json.data[0];",
+                      "    const selectedId = String(operable.id);",
+                      "    pm.environment.set(\"hole_id\", selectedId);",
+                      "    pm.collectionVariables.set(\"hole_id\", selectedId);",
+                      "    console.log(\"Pozo seleccionado:\", selectedId, \"status:\", operable.status);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/holes",
+                "description": "Consulta los pozos reales de tu organización en el servidor y guarda el primer hole_id operable."
+              }
+            },
+            {
+              "name": "3. Estado Actual del Pozo (Auto-calcula depth_from / depth_to)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "const summary = json.summary || {};",
+                      "const current = summary.current_depth !== null && summary.current_depth !== undefined ? Number(summary.current_depth) : 0;",
+                      "const nextFrom = Number(current.toFixed(2));",
+                      "const nextTo = Number((current + 3).toFixed(2));",
+                      "pm.environment.set(\"next_depth_from\", String(nextFrom));",
+                      "pm.environment.set(\"next_depth_to\", String(nextTo));",
+                      "pm.collectionVariables.set(\"next_depth_from\", String(nextFrom));",
+                      "pm.collectionVariables.set(\"next_depth_to\", String(nextTo));",
+                      "console.log(\"Cota preparada -> depth_from:\", nextFrom, \"depth_to:\", nextTo, \"depth_initialized:\", summary.depth_initialized);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress",
+                "description": "Lee la profundidad actual del pozo elegido y calcula automáticamente next_depth_from y next_depth_to para no chocar con cotas existentes."
+              }
+            },
+            {
+              "name": "4. (Solo si es nuevo) Inicializar Profundidad Base",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Inicializado (200) o ya poseia partes (422)\", () => {",
+                      "    pm.expect([200, 422]).to.include(pm.response.code);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"initial_depth\": {{next_depth_from}},\n  \"notes\": \"Inicialización operativa desde Postman\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/initialize-depth",
+                "description": "Ejecutar solo si el pozo aún no tiene depth_initialized = true y el Gateway no devolvió reached_depth."
+              }
+            }
+          ]
+        },
+        {
+          "name": "00b Setup Usuarios de Prueba (Opcional - Sin Consola)",
+          "description": "Paso opcional para pruebas multi-rol completas. Crea por API (sin tocar consola ni esperar al nuevo front) un Perforista, un Supervisor y un Geólogo de prueba, resuelve sus IDs, asigna el perforista al pozo y obtiene sus tokens individuales.",
+          "item": [
+            {
+              "name": "1. Crear Perforista de Prueba",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Creado (201) o ya existente (422)\", () => {",
+                      "    pm.expect([201, 422]).to.include(pm.response.code);",
+                      "});",
+                      "const json = pm.response.json();",
+                      "if (json.data && json.data.id) {",
+                      "    pm.environment.set(\"driller_user_id\", String(json.data.id));",
+                      "    pm.collectionVariables.set(\"driller_user_id\", String(json.data.id));",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Perforista Prueba\",\n  \"email\": \"{{email_driller}}\",\n  \"role\": \"driller\",\n  \"password\": \"{{password_test}}\"\n}"
+                },
+                "url": "{{base_url}}/tenant/personnel"
+              }
+            },
+            {
+              "name": "2. Crear Supervisor de Prueba",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Creado (201) o ya existente (422)\", () => {",
+                      "    pm.expect([201, 422]).to.include(pm.response.code);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Supervisor Prueba\",\n  \"email\": \"{{email_supervisor}}\",\n  \"role\": \"supervisor\",\n  \"password\": \"{{password_test}}\"\n}"
+                },
+                "url": "{{base_url}}/tenant/personnel"
+              }
+            },
+            {
+              "name": "3. Crear Geologo de Prueba",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Creado (201) o ya existente (422)\", () => {",
+                      "    pm.expect([201, 422]).to.include(pm.response.code);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Geólogo Prueba\",\n  \"email\": \"{{email_geologist}}\",\n  \"role\": \"geologist\",\n  \"password\": \"{{password_test}}\"\n}"
+                },
+                "url": "{{base_url}}/tenant/personnel"
+              }
+            },
+            {
+              "name": "4. Listar Personal (Auto-resuelve driller_user_id)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
+                      "const json = pm.response.json();",
+                      "const targetEmail = (pm.environment.get(\"email_driller\") || pm.collectionVariables.get(\"email_driller\") || \"\").toLowerCase();",
+                      "if (Array.isArray(json.data)) {",
+                      "    const driller = json.data.find(m => String(m.email || \"\").toLowerCase() === targetEmail) || json.data.find(m => m.role === \"driller\");",
+                      "    if (driller && driller.id) {",
+                      "        pm.environment.set(\"driller_user_id\", String(driller.id));",
+                      "        pm.collectionVariables.set(\"driller_user_id\", String(driller.id));",
+                      "    }",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "url": "{{base_url}}/tenant/personnel"
+              }
+            },
+            {
+              "name": "5. Asignar Perforista al Pozo",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 201 Created\", () => pm.expect(pm.response.code).to.eql(201));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_admin}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": {{driller_user_id}},\n  \"role_in_hole\": \"driller\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/assignments"
+              }
+            },
+            {
+              "name": "6. Login Perforista (Reemplaza token_driller)",
               "event": [
                 {
                   "listen": "test",
@@ -1517,13 +1906,13 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{email_driller}}\",\n  \"password\": \"{{password_driller}}\"\n}"
+                  "raw": "{\n  \"email\": \"{{email_driller}}\",\n  \"password\": \"{{password_test}}\"\n}"
                 },
                 "url": "{{base_url}}/auth/login"
               }
             },
             {
-              "name": "Login Supervisor",
+              "name": "7. Login Supervisor (Reemplaza token_supervisor)",
               "event": [
                 {
                   "listen": "test",
@@ -1554,13 +1943,13 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{email_supervisor}}\",\n  \"password\": \"{{password_supervisor}}\"\n}"
+                  "raw": "{\n  \"email\": \"{{email_supervisor}}\",\n  \"password\": \"{{password_test}}\"\n}"
                 },
                 "url": "{{base_url}}/auth/login"
               }
             },
             {
-              "name": "Login Geólogo",
+              "name": "8. Login Geologo (Reemplaza token_geologist)",
               "event": [
                 {
                   "listen": "test",
@@ -1591,44 +1980,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{email_geologist}}\",\n  \"password\": \"{{password_geologist}}\"\n}"
-                },
-                "url": "{{base_url}}/auth/login"
-              }
-            },
-            {
-              "name": "Login Administrador",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Codigo 200 OK\", () => pm.expect(pm.response.code).to.eql(200));",
-                      "const json = pm.response.json();",
-                      "if (json.token) {",
-                      "    pm.environment.set(\"token_admin\", json.token);",
-                      "    pm.collectionVariables.set(\"token_admin\", json.token);",
-                      "}"
-                    ],
-                    "type": "text/javascript"
-                  }
-                }
-              ],
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"password\": \"{{password_admin}}\"\n}"
+                  "raw": "{\n  \"email\": \"{{email_geologist}}\",\n  \"password\": \"{{password_test}}\"\n}"
                 },
                 "url": "{{base_url}}/auth/login"
               }
@@ -1641,6 +1993,16 @@
             {
               "name": "Registrar Parte Diario (depth_from, depth_to, hours_worked)",
               "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const key = \"pm-prog-\" + Date.now() + \"-\" + Math.floor(Math.random() * 100000);",
+                      "pm.variables.set(\"idem_key\", key);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
                 {
                   "listen": "test",
                   "script": {
@@ -1656,6 +2018,12 @@
                       "if (json.data && json.data.id) {",
                       "    pm.environment.set(\"progress_log_id\", String(json.data.id));",
                       "    pm.collectionVariables.set(\"progress_log_id\", String(json.data.id));",
+                      "    const nextFrom = Number(json.data.depth_to);",
+                      "    const nextTo = Number((nextFrom + 3).toFixed(2));",
+                      "    pm.environment.set(\"next_depth_from\", String(nextFrom));",
+                      "    pm.environment.set(\"next_depth_to\", String(nextTo));",
+                      "    pm.collectionVariables.set(\"next_depth_from\", String(nextFrom));",
+                      "    pm.collectionVariables.set(\"next_depth_to\", String(nextTo));",
                       "}"
                     ],
                     "type": "text/javascript"
@@ -1680,7 +2048,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"depth_from\": 0,\n  \"depth_to\": 3,\n  \"hours_worked\": 8,\n  \"logged_at\": \"2026-11-10 10:00:00\"\n}"
+                  "raw": "{\n  \"depth_from\": {{next_depth_from}},\n  \"depth_to\": {{next_depth_to}},\n  \"hours_worked\": 8,\n  \"shift\": \"Turno 1\",\n  \"logged_at\": \"2026-11-11 10:00:00\",\n  \"idempotency_key\": \"{{idem_key}}\"\n}"
                 },
                 "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
               }
@@ -1689,49 +2057,23 @@
               "name": "Validacion: Exceso de 8 hs por turno (Falla 422)",
               "event": [
                 {
-                  "listen": "test",
+                  "listen": "prerequest",
                   "script": {
                     "exec": [
-                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));"
+                      "const key = \"pm-prog-\" + Date.now() + \"-\" + Math.floor(Math.random() * 100000);",
+                      "pm.variables.set(\"idem_key\", key);"
                     ],
                     "type": "text/javascript"
                   }
-                }
-              ],
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token_driller}}"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"depth_from\": 3,\n  \"depth_to\": 6,\n  \"hours_worked\": 9,\n  \"logged_at\": \"2026-11-10 12:00:00\"\n}"
                 },
-                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
-              }
-            },
-            {
-              "name": "Validacion: Ventana de Voladuras (00:00 - 08:00) (Falla 422)",
-              "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));",
                       "const json = pm.response.json();",
-                      "pm.test(\"Mensaje explicito de voladura\", () => {",
-                      "    pm.expect(JSON.stringify(json.errors)).to.include(\"voladuras\");",
+                      "pm.test(\"Error en campo hours_worked\", () => {",
+                      "    pm.expect(json.errors).to.have.property(\"hours_worked\");",
                       "});"
                     ],
                     "type": "text/javascript"
@@ -1756,7 +2098,58 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"depth_from\": 3,\n  \"depth_to\": 5,\n  \"hours_worked\": 4,\n  \"logged_at\": \"2026-11-10 03:30:00\"\n}"
+                  "raw": "{\n  \"depth_from\": {{next_depth_from}},\n  \"depth_to\": {{next_depth_to}},\n  \"hours_worked\": 9,\n  \"logged_at\": \"2026-11-11 12:00:00\",\n  \"idempotency_key\": \"{{idem_key}}\"\n}"
+                },
+                "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
+              }
+            },
+            {
+              "name": "Validacion: Ventana de Voladuras (00:00 - 08:00) (Falla 422)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "const key = \"pm-prog-\" + Date.now() + \"-\" + Math.floor(Math.random() * 100000);",
+                      "pm.variables.set(\"idem_key\", key);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Codigo 422 Unprocessable Entity\", () => pm.expect(pm.response.code).to.eql(422));",
+                      "const json = pm.response.json();",
+                      "pm.test(\"Mensaje explicito de voladura en logged_at\", () => {",
+                      "    pm.expect(json.errors).to.have.property(\"logged_at\");",
+                      "    pm.expect(JSON.stringify(json.errors)).to.include(\"voladura\");",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token_driller}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"depth_from\": {{next_depth_from}},\n  \"depth_to\": {{next_depth_to}},\n  \"hours_worked\": 4,\n  \"logged_at\": \"2026-11-11 03:30:00\",\n  \"idempotency_key\": \"{{idem_key}}\"\n}"
                 },
                 "url": "{{base_url}}/tenant/holes/{{hole_id}}/progress"
               }
@@ -1888,9 +2281,10 @@
                     "exec": [
                       "pm.test(\"Codigo 201 Created\", () => pm.expect(pm.response.code).to.eql(201));",
                       "const json = pm.response.json();",
-                      "pm.test(\"Calcula RQD % y recuperacion\", () => {",
-                      "    pm.expect(json.data.rqd_percentage).to.be.a(\"number\");",
-                      "    pm.expect(json.data.recovery_percentage).to.be.a(\"number\");",
+                      "pm.test(\"Calcula RQD % (70.00%) y perdida de testigo (0.20 m)\", () => {",
+                      "    pm.expect(json.data.rqd_percentage).to.eql(\"70.00\");",
+                      "    pm.expect(json.data.core_loss_meters).to.eql(\"0.20\");",
+                      "    pm.expect(json.data.drill_length).to.eql(\"3.00\");",
                       "});"
                     ],
                     "type": "text/javascript"
@@ -1915,7 +2309,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"run_from\": 0,\n  \"run_to\": 3,\n  \"recovered_meters\": 2.8,\n  \"rqd_meters\": 2.1,\n  \"box_number\": 1\n}"
+                  "raw": "{\n  \"run_from\": 0,\n  \"run_to\": 3,\n  \"recovered_meters\": 2.8,\n  \"rqd_meters\": 2.1,\n  \"box_number\": \"CAJA-01\",\n  \"geology_notes\": \"Vetillas de cuarzo con pirita diseminada.\"\n}"
                 },
                 "url": "{{base_url}}/tenant/holes/{{hole_id}}/core-logs"
               }
@@ -1989,7 +2383,8 @@
           ]
         },
         {
-          "name": "04 Control de Acceso por Roles (Seguridad)",
+          "name": "04 Control de Acceso por Roles (Solo Multi-Rol Completo)",
+          "description": "Ejecutar después de correr la carpeta 00b Setup Usuarios de Prueba (para que token_driller pertenezca realmente a un Perforista y no al Admin).",
           "item": [
             {
               "name": "Perforista intenta ver bandeja de supervisor (Falla 403)",
