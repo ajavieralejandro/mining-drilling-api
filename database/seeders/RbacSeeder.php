@@ -20,6 +20,12 @@ class RbacSeeder extends Seeder
             ['name' => 'dashboard.view_personal', 'module' => 'dashboard', 'description' => 'Ver métricas personales de turno y cuadrilla'],
             ['name' => 'dashboard.view_risks', 'module' => 'dashboard', 'description' => 'Ver métricas y panel de riesgos geotécnicos'],
 
+            // Proyectos y Minas por Tenant
+            ['name' => 'projects.view', 'module' => 'proyectos', 'description' => 'Ver proyectos mineros de la organización'],
+            ['name' => 'projects.manage', 'module' => 'proyectos', 'description' => 'Crear, renombrar y administrar proyectos mineros'],
+            ['name' => 'mines.view', 'module' => 'minas', 'description' => 'Ver minas y faenas de la organización'],
+            ['name' => 'mines.manage', 'module' => 'minas', 'description' => 'Crear, renombrar y vincular pozos a minas'],
+
             // Planes y Plataformas
             ['name' => 'plans.view', 'module' => 'planes', 'description' => 'Ver planes de perforación'],
             ['name' => 'plans.manage', 'module' => 'planes', 'description' => 'Crear y administrar planes de perforación'],
@@ -109,6 +115,10 @@ class RbacSeeder extends Seeder
                     'dashboard.view_technical',
                     'dashboard.view_personal',
                     'dashboard.view_risks',
+                    'projects.view',
+                    'projects.manage',
+                    'mines.view',
+                    'mines.manage',
                     'plans.view',
                     'plans.manage',
                     'platforms.view',
@@ -146,6 +156,8 @@ class RbacSeeder extends Seeder
                 'description' => 'Coordinación operativa, asignación de cuadrillas y control de avance.',
                 'permissions' => [
                     'dashboard.view_operational',
+                    'projects.view',
+                    'mines.view',
                     'plans.view',
                     'platforms.view',
                     'drill_holes.view_all',
@@ -173,6 +185,8 @@ class RbacSeeder extends Seeder
                 'description' => 'Supervisión técnica geológica, litología y edición técnica de pozos.',
                 'permissions' => [
                     'dashboard.view_technical',
+                    'projects.view',
+                    'mines.view',
                     'plans.view',
                     'platforms.view',
                     'drill_holes.view_all',
@@ -193,6 +207,8 @@ class RbacSeeder extends Seeder
                 'description' => 'Operador principal a cargo de equipo y registro de avance en sus pozos.',
                 'permissions' => [
                     'dashboard.view_personal',
+                    'projects.view',
+                    'mines.view',
                     'plans.view',
                     'platforms.view',
                     'drill_holes.view_assigned',
@@ -210,6 +226,8 @@ class RbacSeeder extends Seeder
                 'description' => 'Asistente de perforación y reporte de novedades de turno.',
                 'permissions' => [
                     'dashboard.view_personal',
+                    'projects.view',
+                    'mines.view',
                     'drill_holes.view_assigned',
                     'assignments.view',
                     'observations.view',
@@ -223,6 +241,8 @@ class RbacSeeder extends Seeder
                 'description' => 'Control de estabilidad geomecánica y mitigación de riesgos.',
                 'permissions' => [
                     'dashboard.view_risks',
+                    'projects.view',
+                    'mines.view',
                     'drill_holes.view_all',
                     'observations.view',
                     'observations.create',

@@ -27,7 +27,11 @@ use App\Http\Controllers\Api\Tenant\TenantGroupController;
 use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
+use App\Http\Controllers\Api\Tenant\TenantMineController;
+use App\Http\Controllers\Api\Tenant\TenantMineHoleController;
+use App\Http\Controllers\Api\Tenant\TenantOrganizationController;
 use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
+use App\Http\Controllers\Api\Tenant\TenantProjectController;
 use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
@@ -150,6 +154,27 @@ Route::middleware([
     Route::get('/groups/{id}', [TenantGroupController::class, 'show']);
     Route::put('/groups/{id}', [TenantGroupController::class, 'update']);
     Route::delete('/groups/{id}', [TenantGroupController::class, 'destroy']);
+
+    // Organización, Proyectos, Minas y Vínculo con Pozos (Proyectos -> Minas -> Pozos)
+    Route::get('/', [TenantOrganizationController::class, 'show']);
+    Route::patch('/', [TenantOrganizationController::class, 'update']);
+    Route::get('/hierarchy', [TenantProjectController::class, 'hierarchy']);
+
+    Route::get('/projects', [TenantProjectController::class, 'index']);
+    Route::post('/projects', [TenantProjectController::class, 'store']);
+    Route::get('/projects/{project}', [TenantProjectController::class, 'show']);
+    Route::match(['put', 'patch'], '/projects/{project}', [TenantProjectController::class, 'update']);
+    Route::delete('/projects/{project}', [TenantProjectController::class, 'destroy']);
+
+    Route::get('/mines', [TenantMineController::class, 'index']);
+    Route::post('/mines', [TenantMineController::class, 'store']);
+    Route::get('/mines/{mine}', [TenantMineController::class, 'show']);
+    Route::match(['put', 'patch'], '/mines/{mine}', [TenantMineController::class, 'update']);
+    Route::delete('/mines/{mine}', [TenantMineController::class, 'destroy']);
+
+    Route::get('/mines/{mine}/holes', [TenantMineHoleController::class, 'index']);
+    Route::post('/mines/{mine}/holes', [TenantMineHoleController::class, 'attach']);
+    Route::delete('/mines/{mine}/holes/{hole}', [TenantMineHoleController::class, 'detach']);
 });
 
 // Super Admin platform management routes

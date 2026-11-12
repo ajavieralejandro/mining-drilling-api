@@ -50,4 +50,14 @@ class Tenant extends Model
     {
         return $this->hasMany(UserGroup::class);
     }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(TenantProject::class);
+    }
+
+    public function mines(): HasMany
+    {
+        return $this->hasMany(TenantMine::class);
+    }
 }
