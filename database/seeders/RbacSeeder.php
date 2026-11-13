@@ -81,6 +81,7 @@ class RbacSeeder extends Seeder
 
             // Auditoría y Sistema
             ['name' => 'audit.view', 'module' => 'auditoria', 'description' => 'Consultar bitácora de auditoría forense'],
+            ['name' => 'roles.view', 'module' => 'roles', 'description' => 'Consultar roles y permisos del sistema y de la organización'],
             ['name' => 'roles.manage', 'module' => 'roles', 'description' => 'Crear roles y configurar matriz de permisos'],
             ['name' => 'users.manage', 'module' => 'usuarios', 'description' => 'Administrar cuentas de usuario a nivel sistema'],
             ['name' => 'tenants.manage', 'module' => 'organizaciones', 'description' => 'Administrar organizaciones de la plataforma'],
@@ -145,6 +146,8 @@ class RbacSeeder extends Seeder
                     'personnel.manage',
                     'groups.view',
                     'groups.manage',
+                    'roles.view',
+                    'roles.manage',
                     'imports.manage',
                     'source_config.view',
                     'source_config.manage',
@@ -163,6 +166,7 @@ class RbacSeeder extends Seeder
                     'drill_holes.view_all',
                     'assignments.view',
                     'assignments.manage',
+                    'roles.view',
                     'progress.view',
                     'progress.create',
                     'progress.approve',

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\Tenant\TenantMineHoleController;
 use App\Http\Controllers\Api\Tenant\TenantOrganizationController;
 use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
 use App\Http\Controllers\Api\Tenant\TenantProjectController;
+use App\Http\Controllers\Api\Tenant\TenantRoleController;
 use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
 use App\Http\Middleware\AuthenticateDemoInternal;
@@ -175,6 +176,14 @@ Route::middleware([
     Route::get('/mines/{mine}/holes', [TenantMineHoleController::class, 'index']);
     Route::post('/mines/{mine}/holes', [TenantMineHoleController::class, 'attach']);
     Route::delete('/mines/{mine}/holes/{hole}', [TenantMineHoleController::class, 'detach']);
+
+    // Roles y Permisos de la Organización
+    Route::get('/permissions', [TenantRoleController::class, 'permissions']);
+    Route::get('/roles', [TenantRoleController::class, 'index']);
+    Route::post('/roles', [TenantRoleController::class, 'store']);
+    Route::get('/roles/{role}', [TenantRoleController::class, 'show']);
+    Route::match(['put', 'patch'], '/roles/{role}', [TenantRoleController::class, 'update']);
+    Route::delete('/roles/{role}', [TenantRoleController::class, 'destroy']);
 });
 
 // Super Admin platform management routes

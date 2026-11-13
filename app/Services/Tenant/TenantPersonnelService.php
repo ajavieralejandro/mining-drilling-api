@@ -85,17 +85,21 @@ class TenantPersonnelService
         $membership = DB::transaction(function () use ($data, $email, $password, $role, $tenant, $externalHrId, $actor) {
             $user = User::where('email', $email)->first();
 
+            $systemUserRole = \App\Enums\UserRole::tryFrom($role) ?? \App\Enums\UserRole::Helper;
+
             if (! $user) {
                 $user = User::create([
                     'name' => trim($data['name']),
                     'email' => $email,
                     'password' => Hash::make($password),
-                    'role' => $role,
+                    'role' => $systemUserRole,
                     'active' => true,
                 ]);
             } else {
                 $user->name = trim($data['name']);
-                $user->role = $role;
+                if ($matchedSystemRole = \App\Enums\UserRole::tryFrom($role)) {
+                    $user->role = $matchedSystemRole;
+                }
                 $user->active = true;
                 $user->save();
             }
@@ -109,7 +113,8 @@ class TenantPersonnelService
                 actor: $actor,
             );
 
-            $roleModel = \App\Models\Role::forTenant($tenant->id)->where('slug', $role)->first();
+            $roleModel = \App\Models\Role::forTenant($tenant->id)->where('slug', $role)->first()
+                ?? \App\Models\Role::whereNull('tenant_id')->where('slug', $role)->first();
             if ($roleModel) {
                 $activated->roles()->syncWithoutDetaching([$roleModel->id]);
             }
@@ -165,10 +170,14 @@ class TenantPersonnelService
                 $user->name = trim($data['name']);
             }
             if (! empty($data['role'])) {
-                $user->role = trim($data['role']);
-                $membership->role = trim($data['role']);
+                $roleSlug = trim($data['role']);
+                if ($matchedSystemRole = \App\Enums\UserRole::tryFrom($roleSlug)) {
+                    $user->role = $matchedSystemRole;
+                }
+                $membership->role = $roleSlug;
 
-                $roleModel = \App\Models\Role::forTenant($membership->tenant_id)->where('slug', trim($data['role']))->first();
+                $roleModel = \App\Models\Role::forTenant($membership->tenant_id)->where('slug', $roleSlug)->first()
+                    ?? \App\Models\Role::whereNull('tenant_id')->where('slug', $roleSlug)->first();
                 if ($roleModel) {
                     $membership->roles()->sync([$roleModel->id]);
                 }

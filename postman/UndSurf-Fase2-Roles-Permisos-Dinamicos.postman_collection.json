@@ -1,0 +1,1045 @@
+{
+  "info": {
+    "_postman_id": "0f00ca06-4af1-4af3-961c-6a66982564b4",
+    "name": "UndSurf — Fase 2: Roles Dinámicos & Permisos Granulares RBAC",
+    "description": "Colección integral de pruebas para la gestión dinámica de roles y permisos en UndSurf.\n\nFlujos cubiertos:\n1) Autenticación de Admin y Perforista (multi-rol).\n2) Consulta de catálogo de permisos granulares (/tenant/permissions) y validación de 403 para usuarios sin permiso.\n3) Listado y filtrado de roles del sistema y custom (/tenant/roles?type=system).\n4) Creación de rol custom con validación de colisión de slugs reservados y rechazo a no-administradores.\n5) Detalle y actualización de permisos de roles personalizados.\n6) Protección inmutable de roles de sistema contra modificación y borrado (422 PROTECTED_SYSTEM_ROLE).\n7) Asignación del rol personalizado a un nuevo integrante, login con su credencial temporal y verificación dinámica de sus permisos en endpoints protegidos.\n8) Eliminación de rol personalizado y validación de 404.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.undsurf.com/api"
+    },
+    {
+      "key": "email_admin",
+      "value": "admin.test@undsurf.com"
+    },
+    {
+      "key": "password",
+      "value": "UndSurf2026!"
+    },
+    {
+      "key": "email_driller",
+      "value": "perforista.test@undsurf.com"
+    },
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "token_driller",
+      "value": ""
+    },
+    {
+      "key": "system_role_id",
+      "value": ""
+    },
+    {
+      "key": "custom_role_id",
+      "value": ""
+    },
+    {
+      "key": "custom_role_slug",
+      "value": "planificador-minero"
+    },
+    {
+      "key": "perm_projects_view_id",
+      "value": ""
+    },
+    {
+      "key": "perm_mines_manage_id",
+      "value": ""
+    },
+    {
+      "key": "perm_roles_view_id",
+      "value": ""
+    },
+    {
+      "key": "custom_user_email",
+      "value": "planificador.test@undsurf.com"
+    },
+    {
+      "key": "custom_user_password",
+      "value": "UndSurf2026!"
+    },
+    {
+      "key": "token_custom_user",
+      "value": ""
+    },
+    {
+      "key": "custom_user_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Autenticación Inicial",
+      "description": "Obtiene los tokens Bearer para el Administrador y para un Perforista para contrastar permisos RBAC.",
+      "item": [
+        {
+          "name": "1. Login Administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token Bearer\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_admin\", json.token);",
+                  "    if (pm.environment) pm.environment.set(\"token_admin\", json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Login Perforista (No-Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token Bearer\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_driller\", json.token);",
+                  "    if (pm.environment) pm.environment.set(\"token_driller\", json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_driller}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Catálogo de Permisos Granulares",
+      "description": "Verifica la consulta del catálogo de permisos agrupados por módulo y la protección 403.",
+      "item": [
+        {
+          "name": "1. Listar Catálogo de Permisos (Admin - 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Contiene modulos y permisos\", function () {",
+                  "    pm.expect(json.data).to.be.an(\"array\");",
+                  "    pm.expect(json.modules).to.be.an(\"object\");",
+                  "    pm.expect(json.total >= 1).to.eql(true);",
+                  "});",
+                  "const pView = (json.data || []).find(p => p.name === 'projects.view');",
+                  "const mMng = (json.data || []).find(p => p.name === 'mines.manage');",
+                  "const rView = (json.data || []).find(p => p.name === 'roles.view');",
+                  "if (pView) pm.collectionVariables.set(\"perm_projects_view_id\", String(pView.id));",
+                  "if (mMng) pm.collectionVariables.set(\"perm_mines_manage_id\", String(mMng.id));",
+                  "if (rView) pm.collectionVariables.set(\"perm_roles_view_id\", String(rView.id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "permissions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Perforista intenta consultar permisos (403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 403 Forbidden\", function () { pm.expect(pm.response.code).to.eql(403); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Error estructurado\", function () {",
+                  "    pm.expect(json.error).to.be.an(\"object\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "permissions"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Listado y Filtrado de Roles",
+      "description": "Consulta los roles del sistema y custom disponibles para el tenant.",
+      "item": [
+        {
+          "name": "1. Listar Todos los Roles (Admin - 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna lista de roles\", function () {",
+                  "    pm.expect(json.data).to.be.an(\"array\");",
+                  "    pm.expect(json.total >= 1).to.eql(true);",
+                  "});",
+                  "const sysRole = (json.data || []).find(r => r.is_system === true);",
+                  "if (sysRole) {",
+                  "    pm.collectionVariables.set(\"system_role_id\", String(sysRole.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Filtrar solo Roles del Sistema (?type=system)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Todos los roles retornados son de sistema\", function () {",
+                  "    pm.expect(json.data).to.be.an(\"array\");",
+                  "    for (const r of json.data || []) {",
+                  "        pm.expect(r.is_system).to.eql(true);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles?type=system",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "system"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Perforista intenta listar roles (403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 403 Forbidden\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Creación de Rol Personalizado",
+      "description": "Valida control de acceso, prevención de colisión con slugs reservados del sistema y creación exitosa.",
+      "item": [
+        {
+          "name": "1. Perforista intenta crear rol (403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 403 Forbidden\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rol No Autorizado\",\n  \"slug\": \"rol-no-autorizado\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Admin intenta crear rol con slug colisionante con sistema (422 Unprocessable)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 422 Unprocessable Entity\", function () { pm.expect(pm.response.code).to.eql(422); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Indica error de validacion en slug\", function () {",
+                  "    pm.expect(json.errors || json.message).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin Duplicado\",\n  \"slug\": \"admin\",\n  \"permission_ids\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Admin crea Rol Personalizado (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 201 Created\", function () { pm.expect(pm.response.code).to.eql(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna rol creado con id y slug\", function () {",
+                  "    pm.expect(json.data).to.be.an(\"object\");",
+                  "    pm.expect(json.data.slug).to.eql(\"planificador-minero\");",
+                  "    pm.expect(json.data.is_system).to.eql(false);",
+                  "});",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set(\"custom_role_id\", String(json.data.id));",
+                  "    pm.collectionVariables.set(\"custom_role_slug\", json.data.slug);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Planificador Minero\",\n  \"slug\": \"planificador-minero\",\n  \"description\": \"Gestion de minas y proyectos sin acceso a roles\",\n  \"permission_ids\": [{{perm_projects_view_id}}, {{perm_mines_manage_id}}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Detalle y Actualización de Rol",
+      "description": "Consulta detalle de permisos y actualiza descripción y asignación de permisos.",
+      "item": [
+        {
+          "name": "1. Ver Detalle de Rol Custom (Admin - 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Detalle contiene permisos asignados\", function () {",
+                  "    pm.expect(json.data.id).to.eql(Number(pm.collectionVariables.get(\"custom_role_id\")));",
+                  "    pm.expect(json.data.permissions).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{custom_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{custom_role_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Admin actualiza nombre, descripción y añade roles.view al Rol Custom (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Nombre y permisos actualizados\", function () {",
+                  "    pm.expect(json.data.name).to.eql(\"Planificador Minero Líder\");",
+                  "    pm.expect(json.data.permissions.length >= 2).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Planificador Minero Líder\",\n  \"description\": \"Actualizado con visor de roles y gestion de faenas\",\n  \"permission_ids\": [{{perm_projects_view_id}}, {{perm_mines_manage_id}}, {{perm_roles_view_id}}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{custom_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{custom_role_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Protección Inmutable de Roles de Sistema",
+      "description": "Verifica que roles nativos (admin, supervisor, driller, etc.) no puedan ser modificados ni borrados.",
+      "item": [
+        {
+          "name": "1. Admin intenta editar rol del sistema (422 Protected)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 422 Unprocessable Entity\", function () { pm.expect(pm.response.code).to.eql(422); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Codigo de error PROTECTED_SYSTEM_ROLE\", function () {",
+                  "    pm.expect(json.error && json.error.code).to.eql(\"PROTECTED_SYSTEM_ROLE\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rol Sistema Modificado Ilegalmente\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{system_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{system_role_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Admin intenta eliminar rol del sistema (422 Protected)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 422 Unprocessable Entity\", function () { pm.expect(pm.response.code).to.eql(422); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Codigo de error PROTECTED_SYSTEM_ROLE\", function () {",
+                  "    pm.expect(json.error && json.error.code).to.eql(\"PROTECTED_SYSTEM_ROLE\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{system_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{system_role_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Asignación de Rol Custom a Personal y Verificación de Permisos",
+      "description": "Registra un usuario asignándole el rol custom creado y valida que sus permisos efectivos correspondan al nuevo rol.",
+      "item": [
+        {
+          "name": "1. Admin registra personal con el Rol Custom (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 201 Created\", function () { pm.expect(pm.response.code).to.eql(201); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna integrante con rol custom\", function () {",
+                  "    pm.expect(json.data.role).to.eql(pm.collectionVariables.get(\"custom_role_slug\"));",
+                  "});",
+                  "if (json.temporary_password) {",
+                  "    pm.collectionVariables.set(\"custom_user_password\", json.temporary_password);",
+                  "}",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set(\"custom_user_id\", String(json.data.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ingeniero Planificador Test\",\n  \"email\": \"{{custom_user_email}}\",\n  \"role\": \"{{custom_role_slug}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Login con usuario de Rol Custom (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Genera token para usuario de rol custom\", function () {",
+                  "    pm.expect(json.token).to.be.a(\"string\");",
+                  "});",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_custom_user\", json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{custom_user_email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Usuario Custom accede a minas (Permiso mines.manage concedido - 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna lista de minas\", function () {",
+                  "    pm.expect(json.data).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_custom_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/mines",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "mines"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Usuario Custom intenta crear roles (Permiso roles.manage no concedido - 403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 403 Forbidden\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_custom_user}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rol No Autorizado\",\n  \"slug\": \"rol-no-autorizado\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Eliminación de Rol Personalizado",
+      "description": "Elimina el rol creado y valida la respuesta 404 subsiguiente.",
+      "item": [
+        {
+          "name": "1. Admin elimina Rol Custom (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 200 OK\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Mensaje de confirmacion\", function () {",
+                  "    pm.expect(json.message).to.be.a(\"string\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{custom_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{custom_role_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Confirmar que el rol ya no existe (404 Not Found)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Codigo 404 Not Found\", function () { pm.expect(pm.response.code).to.eql(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles/{{custom_role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles",
+                "{{custom_role_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
