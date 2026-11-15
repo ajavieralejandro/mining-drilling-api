@@ -24,6 +24,7 @@ class TenantCoreLogResource extends JsonResource
             'rqd_percentage' => sprintf('%.2f', $this->rqd_percentage),
             'core_loss_meters' => sprintf('%.2f', $this->core_loss_meters),
             'geology_notes' => $this->geology_notes,
+            'photo_url' => $this->photo_url,
             'logged_by' => $this->logged_by,
             'logged_by_user' => new UserResource($this->whenLoaded('loggedByUser')),
             'logged_at' => $this->logged_at?->toIso8601String(),

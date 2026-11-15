@@ -22,13 +22,69 @@ class TenantHoleProgressService
     /**
      * Lista los partes diarios de avance del pozo con paginación cronológica descendente.
      */
-    public function listProgress(string $tenantId, string $originId, string $holeId, int $perPage = 15, int $page = 1): LengthAwarePaginator
-    {
-        return TenantHoleProgressLog::with(['user', 'reviewer'])
-            ->forWell($tenantId, $originId, $holeId)
-            ->orderByDesc('logged_at')
+    public function listProgress(
+        string $tenantId,
+        string $originId,
+        string $holeId,
+        int $perPage = 15,
+        int $page = 1,
+        ?string $status = null
+    ): LengthAwarePaginator {
+        $query = TenantHoleProgressLog::with(['user', 'reviewer'])
+            ->forWell($tenantId, $originId, $holeId);
+
+        if ($status !== null && trim($status) !== '') {
+            $query->where('status', trim($status));
+        }
+
+        return $query->orderByDesc('logged_at')
             ->orderByDesc('created_at')
             ->paginate(perPage: $perPage, page: $page);
+    }
+
+    /**
+     * Obtiene un parte diario específico por ID.
+     */
+    public function getProgress(string $tenantId, string $progressId): TenantHoleProgressLog
+    {
+        return TenantHoleProgressLog::with(['user', 'reviewer', 'operationalState'])
+            ->where('tenant_id', $tenantId)
+            ->where('id', $progressId)
+            ->firstOrFail();
+    }
+
+    /**
+     * Resumen de partes pendientes para el panel del supervisor.
+     */
+    public function getPendingSummary(string $tenantId, ?string $originId = null, ?string $holeId = null): array
+    {
+        $query = TenantHoleProgressLog::where('tenant_id', $tenantId)
+            ->where('status', 'pending_review');
+
+        if ($originId !== null && trim($originId) !== '') {
+            $query->where('origin_id', $originId);
+        }
+
+        if ($holeId !== null && trim($holeId) !== '') {
+            $query->where('hole_id', $holeId);
+        }
+
+        $logs = $query->get(['depth_from', 'depth_to', 'hole_id']);
+        $totalPending = $logs->count();
+        $totalMeters = '0.00';
+        $distinctHoles = [];
+
+        foreach ($logs as $log) {
+            $advance = bcsub(sprintf('%.2f', $log->depth_to), sprintf('%.2f', $log->depth_from), 2);
+            $totalMeters = bcadd($totalMeters, $advance, 2);
+            $distinctHoles[$log->hole_id] = true;
+        }
+
+        return [
+            'total_pending' => $totalPending,
+            'total_pending_meters' => $totalMeters,
+            'holes_count' => count($distinctHoles),
+        ];
     }
 
     /**
@@ -318,7 +374,73 @@ class TenantHoleProgressService
             'logged_by' => $context->userId,
             'logged_at' => $loggedAt,
             'geology_notes' => isset($data['geology_notes']) && trim((string) $data['geology_notes']) !== '' ? trim((string) $data['geology_notes']) : null,
+            'photo_url' => isset($data['photo_url']) && trim((string) $data['photo_url']) !== '' ? trim((string) $data['photo_url']) : null,
         ])->load('loggedByUser');
+    }
+
+    /**
+     * Obtiene un tramo de testigo por ID.
+     */
+    public function getCoreLog(string $tenantId, string $coreLogId): TenantCoreLog
+    {
+        return TenantCoreLog::with('loggedByUser')
+            ->where('tenant_id', $tenantId)
+            ->where('id', $coreLogId)
+            ->firstOrFail();
+    }
+
+    /**
+     * Actualiza un tramo de testigo existente y recalcula métricas si cambian los metros.
+     */
+    public function updateCoreLog(string $tenantId, string $coreLogId, array $data): TenantCoreLog
+    {
+        $coreLog = $this->getCoreLog($tenantId, $coreLogId);
+
+        if (array_key_exists('box_number', $data)) {
+            $coreLog->box_number = $data['box_number'] !== null ? trim((string) $data['box_number']) : null;
+        }
+
+        if (array_key_exists('geology_notes', $data)) {
+            $coreLog->geology_notes = $data['geology_notes'] !== null ? trim((string) $data['geology_notes']) : null;
+        }
+
+        if (array_key_exists('photo_url', $data)) {
+            $coreLog->photo_url = $data['photo_url'] !== null ? trim((string) $data['photo_url']) : null;
+        }
+
+        if (isset($data['logged_at'])) {
+            $coreLog->logged_at = Carbon::parse($data['logged_at'])->toISOString();
+        }
+
+        if (isset($data['recovered_meters']) || isset($data['rqd_meters'])) {
+            $recovered = $data['recovered_meters'] ?? $coreLog->recovered_meters;
+            $rqd = $data['rqd_meters'] ?? $coreLog->rqd_meters;
+
+            $metrics = TenantCoreLog::calculateMetrics(
+                $coreLog->run_from,
+                $coreLog->run_to,
+                $recovered,
+                $rqd
+            );
+
+            $coreLog->recovered_meters = $metrics['recovered_meters'];
+            $coreLog->rqd_meters = $metrics['rqd_meters'];
+            $coreLog->rqd_percentage = $metrics['rqd_percentage'];
+            $coreLog->core_loss_meters = $metrics['core_loss_meters'];
+        }
+
+        $coreLog->save();
+
+        return $coreLog->load('loggedByUser');
+    }
+
+    /**
+     * Elimina un tramo de testigo en loguera.
+     */
+    public function deleteCoreLog(string $tenantId, string $coreLogId): void
+    {
+        $coreLog = $this->getCoreLog($tenantId, $coreLogId);
+        $coreLog->delete();
     }
 
     private function isExpectedIdempotencyCollision(QueryException $e): bool

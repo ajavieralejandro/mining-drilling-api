@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Repositories\TenantHoleRepositoryInterface;
 use App\Models\Connector;
 use App\Models\Membership;
 use App\Models\Tenant;
@@ -87,6 +88,38 @@ class TenantProgressReviewAndCoreLogTest extends TestCase
             'depth_initialized' => true,
             'depth_initialized_at' => now(),
         ]);
+    }
+
+    private function bindMockHoleRepository(string $originId = 'orig-1'): void
+    {
+        $mockRepo = new class($originId) implements TenantHoleRepositoryInterface
+        {
+            public function __construct(private readonly string $originId) {}
+
+            public function list(\App\Support\TenantContext $context, string $correlationId, int $limit = 10): array
+            {
+                return [
+                    'items' => [
+                        ['id' => 'POZO-01', 'code' => 'H-POZO-01', 'status' => 'in_progress'],
+                    ],
+                    'origin_id' => $this->originId,
+                    'request_id' => 'req-1',
+                    'correlation_id' => $correlationId,
+                ];
+            }
+
+            public function find(\App\Support\TenantContext $context, string $correlationId, string $holeId): array
+            {
+                return [
+                    'item' => ['id' => $holeId, 'code' => 'H-'.$holeId, 'status' => 'in_progress'],
+                    'origin_id' => $this->originId,
+                    'request_id' => 'req-find',
+                    'correlation_id' => $correlationId,
+                ];
+            }
+        };
+
+        $this->app->instance(TenantHoleRepositoryInterface::class, $mockRepo);
     }
 
     public function test_supervisor_can_list_and_approve_pending_progress(): void
@@ -286,5 +319,185 @@ class TenantProgressReviewAndCoreLogTest extends TestCase
 
         $this->assertTrue($validator2->fails());
         $this->assertArrayHasKey('rqd_meters', $validator2->errors()->messages());
+    }
+
+    public function test_can_view_single_progress_log_and_filter_by_status(): void
+    {
+        [$tenant, $driller, $supervisor] = $this->setupTenantAndUsers();
+        $state = $this->createOperationalState($tenant);
+
+        $progressLog1 = TenantHoleProgressLog::create([
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'operational_state_id' => $state->id,
+            'origin_id' => $state->origin_id,
+            'hole_id' => $state->hole_id,
+            'user_id' => $driller->id,
+            'depth_from' => '10.00',
+            'depth_to' => '14.50',
+            'depth_current' => '14.50',
+            'hours_worked' => '7.50',
+            'shift' => 'TURNO 1',
+            'status' => 'pending_review',
+            'idempotency_key' => 'idem-filter-1',
+            'payload_hash' => hash('sha256', 'payload-1'),
+            'logged_at' => '2026-11-10T12:00:00Z',
+        ]);
+
+        $progressLog2 = TenantHoleProgressLog::create([
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'operational_state_id' => $state->id,
+            'origin_id' => $state->origin_id,
+            'hole_id' => $state->hole_id,
+            'user_id' => $driller->id,
+            'depth_from' => '14.50',
+            'depth_to' => '18.00',
+            'depth_current' => '18.00',
+            'hours_worked' => '8.00',
+            'shift' => 'TURNO 2',
+            'status' => 'approved',
+            'idempotency_key' => 'idem-filter-2',
+            'payload_hash' => hash('sha256', 'payload-2'),
+            'logged_at' => '2026-11-10T20:00:00Z',
+        ]);
+
+        Sanctum::actingAs($supervisor);
+
+        // 1. Ver detalle de un parte diario específico
+        $showRes = $this->getJson("/api/tenant/progress/{$progressLog1->id}");
+        $showRes->assertOk()
+            ->assertJsonPath('data.id', $progressLog1->id)
+            ->assertJsonPath('data.depth_from', '10.00')
+            ->assertJsonPath('data.depth_to', '14.50')
+            ->assertJsonPath('data.advance_meters', '4.50');
+
+        // 2. Pending list incluye summary
+        $pendingRes = $this->getJson('/api/tenant/progress/pending');
+        $pendingRes->assertOk()
+            ->assertJsonPath('summary.total_pending', 1)
+            ->assertJsonPath('summary.total_pending_meters', '4.50')
+            ->assertJsonPath('summary.holes_count', 1);
+
+        // 3. Conector / holes progress con filtro por status
+        // Simulamos el origen
+        Connector::create([
+            'id' => 'orig-1',
+            'tenant_id' => $tenant->id,
+            'connector_token_hash' => hash('sha256', 'token-1'),
+            'status' => 'active',
+            'communicating' => true,
+            'last_seen_at' => now(),
+        ]);
+
+        $this->bindMockHoleRepository('orig-1');
+
+        $filterPending = $this->getJson("/api/tenant/holes/{$state->hole_id}/progress?origin_id=orig-1&status=pending_review");
+        $filterPending->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $progressLog1->id);
+
+        $filterApproved = $this->getJson("/api/tenant/holes/{$state->hole_id}/progress?origin_id=orig-1&status=approved");
+        $filterApproved->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $progressLog2->id);
+    }
+
+    public function test_geologist_can_show_update_delete_core_log_and_view_rqd_summary(): void
+    {
+        [$tenant, , , $geologist] = $this->setupTenantAndUsers();
+
+        $this->bindMockHoleRepository('orig-1');
+
+        Connector::create([
+            'id' => 'orig-1',
+            'tenant_id' => $tenant->id,
+            'connector_token_hash' => hash('sha256', 'token-2'),
+            'status' => 'active',
+            'communicating' => true,
+            'last_seen_at' => now(),
+        ]);
+
+        $coreLog1 = TenantCoreLog::create([
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'origin_id' => 'orig-1',
+            'hole_id' => 'POZO-01',
+            'box_number' => 'CAJA-01',
+            'run_from' => '0.00',
+            'run_to' => '3.00',
+            'drill_length' => '3.00',
+            'recovered_meters' => '2.80',
+            'rqd_meters' => '2.50',
+            'rqd_percentage' => '83.33',
+            'core_loss_meters' => '0.20',
+            'logged_by' => $geologist->id,
+            'logged_at' => now(),
+            'geology_notes' => 'Pórfido dacítico moderadamente alterado',
+        ]);
+
+        $coreLog2 = TenantCoreLog::create([
+            'id' => (string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'origin_id' => 'orig-1',
+            'hole_id' => 'POZO-01',
+            'box_number' => 'CAJA-02',
+            'run_from' => '3.00',
+            'run_to' => '6.00',
+            'drill_length' => '3.00',
+            'recovered_meters' => '2.90',
+            'rqd_meters' => '2.70',
+            'rqd_percentage' => '90.00',
+            'core_loss_meters' => '0.10',
+            'logged_by' => $geologist->id,
+            'logged_at' => now(),
+            'geology_notes' => 'Roca competente, fracturas selladas',
+        ]);
+
+        Sanctum::actingAs($geologist);
+
+        // 1. Listar core logs con rqd_summary consolidado
+        $listRes = $this->getJson('/api/tenant/holes/POZO-01/core-logs?origin_id=orig-1');
+        $listRes->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('rqd_summary.total_runs', 2)
+            ->assertJsonPath('rqd_summary.total_drill_length', '6.00')
+            ->assertJsonPath('rqd_summary.total_recovered_meters', '5.70')
+            ->assertJsonPath('rqd_summary.recovery_percentage', '95.00')
+            ->assertJsonPath('rqd_summary.total_rqd_meters', '5.20')
+            ->assertJsonPath('rqd_summary.average_rqd_percentage', '86.66')
+            ->assertJsonPath('rqd_summary.rqd_classification', 'Buena')
+            ->assertJsonPath('rqd_summary.total_boxes', 2);
+
+        // 2. Ver un registro específico
+        $showRes = $this->getJson("/api/tenant/holes/POZO-01/core-logs/{$coreLog1->id}?origin_id=orig-1");
+        $showRes->assertOk()
+            ->assertJsonPath('data.id', $coreLog1->id)
+            ->assertJsonPath('data.box_number', 'CAJA-01');
+
+        // 3. Modificar notas y foto del cajón de testigos
+        $updateRes = $this->patchJson("/api/tenant/holes/POZO-01/core-logs/{$coreLog1->id}?origin_id=orig-1", [
+            'box_number' => 'CAJA-01-A',
+            'geology_notes' => 'Presencia de pirita diseminada al 2%',
+            'photo_url' => 'https://storage.undsurf.com/photos/box-01-a.jpg',
+        ]);
+        $updateRes->assertOk()
+            ->assertJsonPath('data.box_number', 'CAJA-01-A')
+            ->assertJsonPath('data.geology_notes', 'Presencia de pirita diseminada al 2%')
+            ->assertJsonPath('data.photo_url', 'https://storage.undsurf.com/photos/box-01-a.jpg');
+
+        $this->assertDatabaseHas('tenant_core_logs', [
+            'id' => $coreLog1->id,
+            'box_number' => 'CAJA-01-A',
+            'photo_url' => 'https://storage.undsurf.com/photos/box-01-a.jpg',
+        ]);
+
+        // 4. Eliminar el segundo registro
+        $deleteRes = $this->deleteJson("/api/tenant/holes/POZO-01/core-logs/{$coreLog2->id}?origin_id=orig-1");
+        $deleteRes->assertOk();
+
+        $this->assertDatabaseMissing('tenant_core_logs', [
+            'id' => $coreLog2->id,
+        ]);
     }
 }

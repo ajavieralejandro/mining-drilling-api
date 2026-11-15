@@ -136,18 +136,22 @@ Route::middleware([
     Route::patch('/personnel/{id}', [TenantPersonnelController::class, 'update']);
     Route::delete('/personnel/{id}', [TenantPersonnelController::class, 'destroy']);
 
+    // Circuito de Revisión y Aprobación por Supervisor (debe ir antes de /progress/{id})
+    Route::get('/progress/pending', [TenantHoleProgressController::class, 'pending']);
+    Route::post('/progress/{id}/review', [TenantHoleProgressController::class, 'review']);
+
     // Avances de perforación en pozos del Gateway
     Route::get('/holes/{hole}/progress', [TenantHoleProgressController::class, 'index']);
     Route::post('/holes/{hole}/progress', [TenantHoleProgressController::class, 'store']);
+    Route::get('/progress/{id}', [TenantHoleProgressController::class, 'show']);
     Route::post('/holes/{hole}/initialize-depth', [TenantHoleProgressController::class, 'initializeDepth']);
-
-    // Circuito de Revisión y Aprobación por Supervisor
-    Route::get('/progress/pending', [TenantHoleProgressController::class, 'pending']);
-    Route::post('/progress/{id}/review', [TenantHoleProgressController::class, 'review']);
 
     // Loguera de Testigos y Cálculo de RQD por Geólogo
     Route::get('/holes/{hole}/core-logs', [TenantHoleProgressController::class, 'coreLogsIndex']);
     Route::post('/holes/{hole}/core-logs', [TenantHoleProgressController::class, 'coreLogsStore']);
+    Route::get('/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsShow']);
+    Route::match(['put', 'patch'], '/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsUpdate']);
+    Route::delete('/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsDestroy']);
 
     // Grupos de usuarios del Tenant
     Route::get('/groups', [TenantGroupController::class, 'index']);

@@ -22,6 +22,7 @@ class StoreTenantCoreLogRequest extends FormRequest
             'box_number' => ['nullable', 'string', 'max:64'],
             'logged_at' => ['nullable', 'date'],
             'geology_notes' => ['nullable', 'string', 'max:2000'],
+            'photo_url' => ['nullable', 'string', 'max:500'],
             'origin_id' => ['nullable', 'string', 'max:64'],
         ];
     }

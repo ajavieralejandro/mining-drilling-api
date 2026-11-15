@@ -29,6 +29,7 @@ class TenantCoreLog extends Model
         'logged_by',
         'logged_at',
         'geology_notes',
+        'photo_url',
     ];
 
     protected function casts(): array
@@ -94,5 +95,94 @@ class TenantCoreLog extends Model
             'core_loss_meters' => bccomp($coreLoss, '0.00', 2) < 0 ? '0.00' : $coreLoss,
             'rqd_percentage' => $percentage,
         ];
+    }
+
+    /**
+     * Calcula el resumen geomecánico acumulado de todos los testigos y RQD del pozo.
+     */
+    public static function calculateHoleRqdSummary(string $tenantId, string $originId, string $holeId): array
+    {
+        $logs = static::forWell($tenantId, $originId, $holeId)->get();
+
+        $totalRuns = $logs->count();
+        if ($totalRuns === 0) {
+            return [
+                'total_runs' => 0,
+                'total_drill_length' => '0.00',
+                'total_recovered_meters' => '0.00',
+                'recovery_percentage' => '0.00',
+                'total_rqd_meters' => '0.00',
+                'average_rqd_percentage' => '0.00',
+                'rqd_classification' => 'Sin datos',
+                'total_core_loss_meters' => '0.00',
+                'total_boxes' => 0,
+            ];
+        }
+
+        $totalDrill = '0.00';
+        $totalRecovered = '0.00';
+        $totalRqd = '0.00';
+        $totalCoreLoss = '0.00';
+        $boxes = [];
+
+        foreach ($logs as $log) {
+            $totalDrill = bcadd($totalDrill, sprintf('%.2f', $log->drill_length), 2);
+            $totalRecovered = bcadd($totalRecovered, sprintf('%.2f', $log->recovered_meters), 2);
+            $totalRqd = bcadd($totalRqd, sprintf('%.2f', $log->rqd_meters), 2);
+            $totalCoreLoss = bcadd($totalCoreLoss, sprintf('%.2f', $log->core_loss_meters), 2);
+
+            if ($log->box_number !== null && trim($log->box_number) !== '') {
+                $boxes[trim($log->box_number)] = true;
+            }
+        }
+
+        $recoveryPercentage = '0.00';
+        $averageRqd = '0.00';
+
+        if (bccomp($totalDrill, '0.00', 2) > 0) {
+            $recRatio = bcdiv($totalRecovered, $totalDrill, 4);
+            $recoveryPercentage = bcmul($recRatio, '100.00', 2);
+            if (bccomp($recoveryPercentage, '100.00', 2) > 0) {
+                $recoveryPercentage = '100.00';
+            }
+
+            $rqdRatio = bcdiv($totalRqd, $totalDrill, 4);
+            $averageRqd = bcmul($rqdRatio, '100.00', 2);
+            if (bccomp($averageRqd, '100.00', 2) > 0) {
+                $averageRqd = '100.00';
+            }
+        }
+
+        return [
+            'total_runs' => $totalRuns,
+            'total_drill_length' => $totalDrill,
+            'total_recovered_meters' => $totalRecovered,
+            'recovery_percentage' => $recoveryPercentage,
+            'total_rqd_meters' => $totalRqd,
+            'average_rqd_percentage' => $averageRqd,
+            'rqd_classification' => static::deereClassification((float) $averageRqd),
+            'total_core_loss_meters' => $totalCoreLoss,
+            'total_boxes' => count($boxes),
+        ];
+    }
+
+    /**
+     * Clasificación internacional geomecánica de roca según Deere (1968).
+     */
+    public static function deereClassification(float $rqd): string
+    {
+        if ($rqd >= 90.0) {
+            return 'Excelente';
+        }
+        if ($rqd >= 75.0) {
+            return 'Buena';
+        }
+        if ($rqd >= 50.0) {
+            return 'Regular';
+        }
+        if ($rqd >= 25.0) {
+            return 'Mala';
+        }
+        return 'Muy Mala';
     }
 }

@@ -7,8 +7,10 @@ use App\Http\Requests\Tenant\InitializeHoleDepthRequest;
 use App\Http\Requests\Tenant\ReviewTenantHoleProgressRequest;
 use App\Http\Requests\Tenant\StoreTenantCoreLogRequest;
 use App\Http\Requests\Tenant\StoreTenantHoleProgressRequest;
+use App\Http\Requests\Tenant\UpdateTenantCoreLogRequest;
 use App\Http\Resources\Tenant\TenantCoreLogResource;
 use App\Http\Resources\Tenant\TenantHoleProgressLogResource;
+use App\Models\TenantCoreLog;
 use App\Policies\TenantHoleProgressPolicy;
 use App\Services\Tenant\TenantHoleOperationalStateService;
 use App\Services\Tenant\TenantHoleOriginResolver;
@@ -48,7 +50,8 @@ class TenantHoleProgressController extends Controller
         $perPage = ($perPage > 0 && $perPage <= 100) ? $perPage : 15;
         $page = max(1, (int) $request->query('page', 1));
 
-        $paginator = $this->progressService->listProgress($context->tenantId, $originId, $hole, $perPage, $page);
+        $status = $request->query('status');
+        $paginator = $this->progressService->listProgress($context->tenantId, $originId, $hole, $perPage, $page, $status);
         $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole, $resolved['item']['status'] ?? null);
 
         return response()->json([
@@ -61,6 +64,20 @@ class TenantHoleProgressController extends Controller
                 'last_page' => $paginator->lastPage(),
             ],
             'request_id' => $resolved['request_id'] ?? $correlation->id,
+            'correlation_id' => $correlation->id,
+        ]);
+    }
+
+    public function show(Request $request, string $id, TenantContext $context, RequestCorrelation $correlation): JsonResponse
+    {
+        if (! $this->policy->viewAny($request->user(), $context)) {
+            return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
+        }
+
+        $log = $this->progressService->getProgress($context->tenantId, $id);
+
+        return response()->json([
+            'data' => new TenantHoleProgressLogResource($log),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -83,9 +100,11 @@ class TenantHoleProgressController extends Controller
         $page = max(1, (int) $request->query('page', 1));
 
         $paginator = $this->progressService->listPendingProgress($context->tenantId, $originId, $holeId, $perPage, $page);
+        $summary = $this->progressService->getPendingSummary($context->tenantId, $originId, $holeId);
 
         return response()->json([
             'data' => TenantHoleProgressLogResource::collection($paginator->items()),
+            'summary' => $summary,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'per_page' => $paginator->perPage(),
@@ -238,9 +257,11 @@ class TenantHoleProgressController extends Controller
         $page = max(1, (int) $request->query('page', 1));
 
         $paginator = $this->progressService->listCoreLogs($context->tenantId, $originId, $hole, $perPage, $page);
+        $rqdSummary = TenantCoreLog::calculateHoleRqdSummary($context->tenantId, $originId, $hole);
 
         return response()->json([
             'data' => TenantCoreLogResource::collection($paginator->items()),
+            'rqd_summary' => $rqdSummary,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'per_page' => $paginator->perPage(),
@@ -248,6 +269,59 @@ class TenantHoleProgressController extends Controller
                 'last_page' => $paginator->lastPage(),
             ],
             'request_id' => $resolved['request_id'] ?? $correlation->id,
+            'correlation_id' => $correlation->id,
+        ]);
+    }
+
+    public function coreLogsShow(Request $request, string $hole, string $id, TenantContext $context, RequestCorrelation $correlation): JsonResponse
+    {
+        if (! $this->policy->viewAny($request->user(), $context)) {
+            return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
+        }
+
+        $coreLog = $this->progressService->getCoreLog($context->tenantId, $id);
+
+        return response()->json([
+            'data' => new TenantCoreLogResource($coreLog),
+            'correlation_id' => $correlation->id,
+        ]);
+    }
+
+    public function coreLogsUpdate(UpdateTenantCoreLogRequest $request, string $hole, string $id, TenantContext $context, RequestCorrelation $correlation): JsonResponse
+    {
+        if (! $this->policy->logCores($request->user(), $context)) {
+            return response()->json([
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Solo geólogos y administradores pueden modificar tramos en loguera.',
+                ],
+            ], 403);
+        }
+
+        $updated = $this->progressService->updateCoreLog($context->tenantId, $id, $request->validated());
+
+        return response()->json([
+            'message' => 'Tramo de testigo y cálculo de RQD actualizados exitosamente.',
+            'data' => new TenantCoreLogResource($updated),
+            'correlation_id' => $correlation->id,
+        ]);
+    }
+
+    public function coreLogsDestroy(Request $request, string $hole, string $id, TenantContext $context, RequestCorrelation $correlation): JsonResponse
+    {
+        if (! $this->policy->logCores($request->user(), $context)) {
+            return response()->json([
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Solo geólogos y administradores pueden eliminar tramos en loguera.',
+                ],
+            ], 403);
+        }
+
+        $this->progressService->deleteCoreLog($context->tenantId, $id);
+
+        return response()->json([
+            'message' => 'Tramo de testigo eliminado exitosamente.',
             'correlation_id' => $correlation->id,
         ]);
     }
