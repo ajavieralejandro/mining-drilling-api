@@ -98,10 +98,10 @@ class MiningDataSeeder extends Seeder
         ]);
 
         $machines = [
-            Machine::create(['code' => 'UG-DRILL-01', 'type' => MachineType::Underground, 'status' => MachineStatus::Active, 'notes' => 'Jumbo principal']),
-            Machine::create(['code' => 'UG-DRILL-02', 'type' => MachineType::Underground, 'status' => MachineStatus::Active, 'notes' => 'Jumbo secundario']),
-            Machine::create(['code' => 'SF-DRILL-01', 'type' => MachineType::Surface, 'status' => MachineStatus::Maintenance, 'notes' => 'Perforadora superficie']),
-            Machine::create(['code' => 'UG-DRILL-03', 'type' => MachineType::Underground, 'status' => MachineStatus::OutOfService, 'notes' => 'Fuera de servicio']),
+            Machine::create(['code' => 'UG-DRILL-01', 'type' => MachineType::Underground, 'status' => MachineStatus::Active, 'notes' => 'MT700 de Boart Longyear (subterránea) principal']),
+            Machine::create(['code' => 'UG-DRILL-02', 'type' => MachineType::Underground, 'status' => MachineStatus::Active, 'notes' => 'MT700 de Boart Longyear (subterránea) secundaria']),
+            Machine::create(['code' => 'SF-DRILL-01', 'type' => MachineType::Surface, 'status' => MachineStatus::Maintenance, 'notes' => 'Boart Longyear LF90 (superficie)']),
+            Machine::create(['code' => 'UG-DRILL-03', 'type' => MachineType::Underground, 'status' => MachineStatus::OutOfService, 'notes' => 'MT700 de Boart Longyear fuera de servicio']),
         ];
 
         foreach ($machines as $machine) {
