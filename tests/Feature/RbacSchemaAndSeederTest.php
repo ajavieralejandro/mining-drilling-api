@@ -55,9 +55,26 @@ class RbacSchemaAndSeederTest extends TestCase
         $this->assertTrue($drillerRole->hasPermission('progress.create'));
         $this->assertFalse($drillerRole->hasPermission('drill_holes.update_technical_data'));
 
-        // Verifica que el rol geologist tiene drill_holes.update_technical_data
+        // Verifica que el rol geologist tiene todos los permisos habilitados excepto los de administración de roles/usuarios/tenants
         $geologistRole = Role::where('slug', 'geologist')->firstOrFail();
         $this->assertTrue($geologistRole->hasPermission('drill_holes.update_technical_data'));
+        $this->assertTrue($geologistRole->hasPermission('geology.log_cores'));
+        $this->assertTrue($geologistRole->hasPermission('imports.manage'));
+        $this->assertTrue($geologistRole->hasPermission('machines.manage'));
+        $this->assertFalse($geologistRole->hasPermission('roles.view'));
+        $this->assertFalse($geologistRole->hasPermission('roles.manage'));
+        $this->assertFalse($geologistRole->hasPermission('users.manage'));
+        $this->assertFalse($geologistRole->hasPermission('tenants.manage'));
+        $this->assertEquals($totalPermissions - 4, $geologistRole->permissions()->count());
+
+        // Verifica que el rol geotechnical puede importar CSV/planos, ver RQD, avances, cuadrillas y maquinaria
+        $geotechnicalRole = Role::where('slug', 'geotechnical')->firstOrFail();
+        $this->assertTrue($geotechnicalRole->hasPermission('imports.manage'));
+        $this->assertTrue($geotechnicalRole->hasPermission('geology.log_cores'));
+        $this->assertTrue($geotechnicalRole->hasPermission('progress.view'));
+        $this->assertTrue($geotechnicalRole->hasPermission('assignments.view'));
+        $this->assertTrue($geotechnicalRole->hasPermission('groups.view'));
+        $this->assertTrue($geotechnicalRole->hasPermission('machines.view'));
     }
 
     public function test_can_create_custom_role_with_dynamic_permissions(): void
