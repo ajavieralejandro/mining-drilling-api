@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Connector;
 use App\Models\ConnectorCommand;
 use App\Models\Membership;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Connector\CommandDispatcher;
@@ -14,8 +15,6 @@ use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
-use RuntimeException;
 
 class TenantPersonnelService
 {
@@ -85,7 +84,7 @@ class TenantPersonnelService
         $membership = DB::transaction(function () use ($data, $email, $password, $role, $tenant, $externalHrId, $actor) {
             $user = User::where('email', $email)->first();
 
-            $systemUserRole = \App\Enums\UserRole::tryFrom($role) ?? \App\Enums\UserRole::Helper;
+            $systemUserRole = UserRole::tryFrom($role) ?? UserRole::Helper;
 
             if (! $user) {
                 $user = User::create([
@@ -97,7 +96,7 @@ class TenantPersonnelService
                 ]);
             } else {
                 $user->name = trim($data['name']);
-                if ($matchedSystemRole = \App\Enums\UserRole::tryFrom($role)) {
+                if ($matchedSystemRole = UserRole::tryFrom($role)) {
                     $user->role = $matchedSystemRole;
                 }
                 $user->active = true;
@@ -113,8 +112,8 @@ class TenantPersonnelService
                 actor: $actor,
             );
 
-            $roleModel = \App\Models\Role::forTenant($tenant->id)->where('slug', $role)->first()
-                ?? \App\Models\Role::whereNull('tenant_id')->where('slug', $role)->first();
+            $roleModel = Role::forTenant($tenant->id)->where('slug', $role)->first()
+                ?? Role::whereNull('tenant_id')->where('slug', $role)->first();
             if ($roleModel) {
                 $activated->roles()->syncWithoutDetaching([$roleModel->id]);
             }
@@ -171,13 +170,13 @@ class TenantPersonnelService
             }
             if (! empty($data['role'])) {
                 $roleSlug = trim($data['role']);
-                if ($matchedSystemRole = \App\Enums\UserRole::tryFrom($roleSlug)) {
+                if ($matchedSystemRole = UserRole::tryFrom($roleSlug)) {
                     $user->role = $matchedSystemRole;
                 }
                 $membership->role = $roleSlug;
 
-                $roleModel = \App\Models\Role::forTenant($membership->tenant_id)->where('slug', $roleSlug)->first()
-                    ?? \App\Models\Role::whereNull('tenant_id')->where('slug', $roleSlug)->first();
+                $roleModel = Role::forTenant($membership->tenant_id)->where('slug', $roleSlug)->first()
+                    ?? Role::whereNull('tenant_id')->where('slug', $roleSlug)->first();
                 if ($roleModel) {
                     $membership->roles()->sync([$roleModel->id]);
                 }
@@ -279,10 +278,7 @@ class TenantPersonnelService
 
             // ADR-04: Purga inmediata de datos operativos en el Control Plane
             // Ni el payload enviado ni la respuesta persisten en la DB del servidor puente.
-            $command->forceFill([
-                'payload_json' => [],
-                'result_json' => null,
-            ])->save();
+            $completed->purgeOperationalData();
 
             if ($completed->status === ConnectorCommand::STATUS_COMPLETED) {
                 return ['synced' => true, 'message' => 'Sincronizado exitosamente con la base de datos de origen.'];

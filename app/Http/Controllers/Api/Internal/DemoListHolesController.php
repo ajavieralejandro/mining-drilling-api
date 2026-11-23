@@ -76,6 +76,8 @@ class DemoListHolesController extends Controller
         }
 
         $command = $dispatcher->waitForResult($command);
+        $items = $command->result_json['items'] ?? [];
+        $command->purgeOperationalData();
 
         if ($command->status === ConnectorCommand::STATUS_TIMEOUT) {
             return $this->error(
@@ -109,7 +111,7 @@ class DemoListHolesController extends Controller
             'tenant_id' => $command->tenant_id,
             'connector_id' => $command->connector_id,
             'op' => $command->op,
-            'items' => $command->result_json['items'] ?? [],
+            'items' => $items,
         ]);
     }
 

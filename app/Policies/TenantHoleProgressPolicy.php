@@ -14,7 +14,12 @@ class TenantHoleProgressPolicy
             || $user->activeMembership()?->tenant_id === $context->tenantId;
     }
 
-    public function create(User $user, TenantContext $context, string $holeId, ?string $originId = null): bool
+    /**
+     * @param  \Closure(): ?int  $activeDrillerId  reads the hole's active driller
+     *                                             from the client database; called only
+     *                                             when the answer depends on it
+     */
+    public function create(User $user, TenantContext $context, \Closure $activeDrillerId): bool
     {
         if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
             return true;
@@ -25,7 +30,7 @@ class TenantHoleProgressPolicy
                 return true;
             }
 
-            return $user->isAssignedAsDrillerToTenantHole($context->tenantId, $holeId, $originId);
+            return $activeDrillerId() === $user->id;
         }
 
         if ($user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value) {
@@ -33,7 +38,7 @@ class TenantHoleProgressPolicy
         }
 
         if ($user->role === UserRole::Driller || $context->role === UserRole::Driller->value) {
-            return $user->isAssignedAsDrillerToTenantHole($context->tenantId, $holeId, $originId);
+            return $activeDrillerId() === $user->id;
         }
 
         return false;

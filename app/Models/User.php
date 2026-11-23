@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Services\PermissionService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -96,35 +97,6 @@ class User extends Authenticatable
         return $this->hasMany(TenantHoleProgressLog::class);
     }
 
-    public function isAssignedToTenantHole(string $tenantId, string $holeId, ?string $originId = null): bool
-    {
-        $query = $this->tenantHoleAssignments()
-            ->where('tenant_id', $tenantId)
-            ->where('hole_id', $holeId)
-            ->where('active', true);
-
-        if ($originId !== null) {
-            $query->where('origin_id', $originId);
-        }
-
-        return $query->exists();
-    }
-
-    public function isAssignedAsDrillerToTenantHole(string $tenantId, string $holeId, ?string $originId = null): bool
-    {
-        $query = $this->tenantHoleAssignments()
-            ->where('tenant_id', $tenantId)
-            ->where('hole_id', $holeId)
-            ->where('role_in_hole', 'driller')
-            ->where('active', true);
-
-        if ($originId !== null) {
-            $query->where('origin_id', $originId);
-        }
-
-        return $query->exists();
-    }
-
     public function userGroups(): BelongsToMany
     {
         return $this->belongsToMany(UserGroup::class, 'user_group_members')->withTimestamps();
@@ -137,12 +109,12 @@ class User extends Authenticatable
 
     public function hasPermission(string $permission, ?string $tenantId = null): bool
     {
-        return app(\App\Services\PermissionService::class)->hasPermission($this, $permission, $tenantId);
+        return app(PermissionService::class)->hasPermission($this, $permission, $tenantId);
     }
 
     public function permissions(?string $tenantId = null): array
     {
-        return app(\App\Services\PermissionService::class)->getPermissionsForUser($this, $tenantId);
+        return app(PermissionService::class)->getPermissionsForUser($this, $tenantId);
     }
 
     public function isAdmin(): bool

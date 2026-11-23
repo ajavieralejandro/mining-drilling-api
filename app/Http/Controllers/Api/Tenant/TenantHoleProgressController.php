@@ -8,10 +8,10 @@ use App\Http\Requests\Tenant\ReviewTenantHoleProgressRequest;
 use App\Http\Requests\Tenant\StoreTenantCoreLogRequest;
 use App\Http\Requests\Tenant\StoreTenantHoleProgressRequest;
 use App\Http\Requests\Tenant\UpdateTenantCoreLogRequest;
-use App\Http\Resources\Tenant\TenantCoreLogResource;
-use App\Http\Resources\Tenant\TenantHoleProgressLogResource;
-use App\Models\TenantCoreLog;
+use App\Http\Resources\Tenant\CoreLogPresenter;
+use App\Http\Resources\Tenant\ProgressReportPresenter;
 use App\Policies\TenantHoleProgressPolicy;
+use App\Services\Tenant\TenantHoleAssignmentService;
 use App\Services\Tenant\TenantHoleOperationalStateService;
 use App\Services\Tenant\TenantHoleOriginResolver;
 use App\Services\Tenant\TenantHoleProgressService;
@@ -28,6 +28,7 @@ class TenantHoleProgressController extends Controller
         private readonly TenantHoleOperationalStateService $operationalService,
         private readonly TenantHoleOriginResolver $originResolver,
         private readonly TenantHoleProgressPolicy $policy,
+        private readonly TenantHoleAssignmentService $assignmentService,
     ) {}
 
     public function index(Request $request, string $hole, TenantContext $context, RequestCorrelation $correlation): JsonResponse
@@ -44,25 +45,18 @@ class TenantHoleProgressController extends Controller
             return $e->toResponse();
         }
 
-        $originId = $resolved['origin_id'];
-
         $perPage = (int) $request->query('per_page', 15);
         $perPage = ($perPage > 0 && $perPage <= 100) ? $perPage : 15;
         $page = max(1, (int) $request->query('page', 1));
 
         $status = $request->query('status');
-        $paginator = $this->progressService->listProgress($context->tenantId, $originId, $hole, $perPage, $page, $status);
-        $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole, $resolved['item']['status'] ?? null);
+        $result = $this->progressService->listProgress($context, $hole, $perPage, $page, is_string($status) ? $status : null, $correlation->id);
+        $summary = $this->operationalService->getSummary($context, $hole, $correlation->id, $resolved['origin_id']);
 
         return response()->json([
-            'data' => TenantHoleProgressLogResource::collection($paginator->items()),
+            'data' => ProgressReportPresenter::many($result['items'], $context->tenantId, $result['origin_id'] ?? $resolved['origin_id']),
             'summary' => $summary,
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
-            ],
+            'pagination' => self::pagination($page, $perPage, $result['total']),
             'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ]);
@@ -74,10 +68,10 @@ class TenantHoleProgressController extends Controller
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
         }
 
-        $log = $this->progressService->getProgress($context->tenantId, $id);
+        $log = $this->progressService->getProgress($context, $id, $correlation->id);
 
         return response()->json([
-            'data' => new TenantHoleProgressLogResource($log),
+            'data' => ProgressReportPresenter::one($log, $context->tenantId, $log['origin_id'] ?? null),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -93,24 +87,17 @@ class TenantHoleProgressController extends Controller
             ], 403);
         }
 
-        $originId = $request->query('origin_id');
         $holeId = $request->query('hole_id');
         $perPage = (int) $request->query('per_page', 15);
         $perPage = ($perPage > 0 && $perPage <= 100) ? $perPage : 15;
         $page = max(1, (int) $request->query('page', 1));
 
-        $paginator = $this->progressService->listPendingProgress($context->tenantId, $originId, $holeId, $perPage, $page);
-        $summary = $this->progressService->getPendingSummary($context->tenantId, $originId, $holeId);
+        $result = $this->progressService->listPendingProgress($context, is_string($holeId) ? $holeId : null, $perPage, $page, $correlation->id);
 
         return response()->json([
-            'data' => TenantHoleProgressLogResource::collection($paginator->items()),
-            'summary' => $summary,
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
-            ],
+            'data' => ProgressReportPresenter::many($result['items'], $context->tenantId, $result['origin_id']),
+            'summary' => $result['summary'],
+            'pagination' => self::pagination($page, $perPage, $result['total']),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -128,18 +115,18 @@ class TenantHoleProgressController extends Controller
 
         $validated = $request->validated();
         $updated = $this->progressService->reviewProgress(
-            $context->tenantId,
+            $context,
             $id,
             $validated['action'],
             $validated['review_notes'] ?? null,
-            $context->userId
+            $correlation->id,
         );
 
-        $statusEs = $updated->status === 'approved' ? 'aprobado' : 'rechazado';
+        $statusEs = ($updated['status'] ?? null) === 'approved' ? 'aprobado' : 'rechazado';
 
         return response()->json([
             'message' => "Parte diario {$statusEs} exitosamente.",
-            'data' => new TenantHoleProgressLogResource($updated),
+            'data' => ProgressReportPresenter::one($updated, $context->tenantId, $updated['origin_id'] ?? null),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -157,8 +144,15 @@ class TenantHoleProgressController extends Controller
         $originId = $resolved['origin_id'];
         $holeItem = $resolved['item'];
 
+        // La cuadrilla vive en la base de la minera: se lee una vez, solo si
+        // hace falta, y sirve para el permiso y para la foto del parte.
+        $crew = null;
+        $loadCrew = function () use (&$crew, $context, $hole, $correlation): array {
+            return $crew ??= $this->assignmentService->getCrewForHole($context, $hole, $correlation->id)['crew'];
+        };
+
         // Autorizar ANTES de procesar o devolver cualquier replay idempotente
-        if (! $this->policy->create($request->user(), $context, $hole, $originId)) {
+        if (! $this->policy->create($request->user(), $context, fn () => $loadCrew()['driller']['user_id'] ?? null)) {
             return response()->json([
                 'error' => [
                     'code' => 'FORBIDDEN',
@@ -173,16 +167,18 @@ class TenantHoleProgressController extends Controller
             $hole,
             $request->validated(),
             $holeItem,
+            $loadCrew(),
+            $correlation->id,
         );
 
-        $isReplay = $result['idempotent_replay'];
+        $isReplay = $result['replayed'];
         $statusCode = $isReplay ? 200 : 201;
 
         $response = response()->json([
             'message' => $isReplay
                 ? 'Avance ya registrado previamente (respuesta idempotente).'
                 : 'Avance registrado exitosamente en estado pendiente de revisión por el supervisor.',
-            'data' => new TenantHoleProgressLogResource($result['progress']),
+            'data' => ProgressReportPresenter::one($result['item'], $context->tenantId, $result['origin_id'] ?? $originId),
             'idempotent_replay' => $isReplay,
             'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
@@ -214,19 +210,15 @@ class TenantHoleProgressController extends Controller
             return $e->toResponse();
         }
 
-        $originId = $resolved['origin_id'];
-        $holeItem = $resolved['item'];
-
         $this->operationalService->initializeDepth(
             $context,
-            $originId,
             $hole,
             $request->input('initial_depth'),
             $request->input('notes'),
-            $holeItem,
+            $correlation->id,
         );
 
-        $summary = $this->operationalService->getSummary($context->tenantId, $originId, $hole);
+        $summary = $this->operationalService->getSummary($context, $hole, $correlation->id, $resolved['origin_id']);
 
         return response()->json([
             'message' => 'Profundidad inicial del pozo establecida exitosamente.',
@@ -250,24 +242,16 @@ class TenantHoleProgressController extends Controller
             return $e->toResponse();
         }
 
-        $originId = $resolved['origin_id'];
-
         $perPage = (int) $request->query('per_page', 25);
         $perPage = ($perPage > 0 && $perPage <= 100) ? $perPage : 25;
         $page = max(1, (int) $request->query('page', 1));
 
-        $paginator = $this->progressService->listCoreLogs($context->tenantId, $originId, $hole, $perPage, $page);
-        $rqdSummary = TenantCoreLog::calculateHoleRqdSummary($context->tenantId, $originId, $hole);
+        $result = $this->progressService->listCoreLogs($context, $hole, $perPage, $page, $correlation->id);
 
         return response()->json([
-            'data' => TenantCoreLogResource::collection($paginator->items()),
-            'rqd_summary' => $rqdSummary,
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
-            ],
+            'data' => CoreLogPresenter::many($result['items'], $context->tenantId, $result['origin_id'] ?? $resolved['origin_id']),
+            'rqd_summary' => CoreLogPresenter::summary($result['totals']),
+            'pagination' => self::pagination($page, $perPage, $result['total']),
             'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ]);
@@ -279,10 +263,10 @@ class TenantHoleProgressController extends Controller
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
         }
 
-        $coreLog = $this->progressService->getCoreLog($context->tenantId, $id);
+        $coreLog = $this->progressService->getCoreLog($context, $hole, $id, $correlation->id);
 
         return response()->json([
-            'data' => new TenantCoreLogResource($coreLog),
+            'data' => CoreLogPresenter::one($coreLog, $context->tenantId, $coreLog['origin_id'] ?? null),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -298,11 +282,11 @@ class TenantHoleProgressController extends Controller
             ], 403);
         }
 
-        $updated = $this->progressService->updateCoreLog($context->tenantId, $id, $request->validated());
+        $updated = $this->progressService->updateCoreLog($context, $hole, $id, $request->validated(), $correlation->id);
 
         return response()->json([
             'message' => 'Tramo de testigo y cálculo de RQD actualizados exitosamente.',
-            'data' => new TenantCoreLogResource($updated),
+            'data' => CoreLogPresenter::one($updated, $context->tenantId, $updated['origin_id'] ?? null),
             'correlation_id' => $correlation->id,
         ]);
     }
@@ -318,7 +302,7 @@ class TenantHoleProgressController extends Controller
             ], 403);
         }
 
-        $this->progressService->deleteCoreLog($context->tenantId, $id);
+        $this->progressService->deleteCoreLog($context, $hole, $id, $correlation->id);
 
         return response()->json([
             'message' => 'Tramo de testigo eliminado exitosamente.',
@@ -347,18 +331,26 @@ class TenantHoleProgressController extends Controller
             ], 403);
         }
 
-        $coreLog = $this->progressService->recordCoreLog(
-            $context,
-            $originId,
-            $hole,
-            $request->validated()
-        );
+        $coreLog = $this->progressService->recordCoreLog($context, $hole, $request->validated(), $correlation->id);
 
         return response()->json([
             'message' => 'Tramo de testigo y cálculo de RQD asentados exitosamente.',
-            'data' => new TenantCoreLogResource($coreLog),
+            'data' => CoreLogPresenter::one($coreLog, $context->tenantId, $coreLog['origin_id'] ?? $originId),
             'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
         ], 201);
+    }
+
+    /**
+     * @return array{current_page: int, per_page: int, total: int, last_page: int}
+     */
+    private static function pagination(int $page, int $perPage, int $total): array
+    {
+        return [
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+            'last_page' => max(1, (int) ceil($total / max(1, $perPage))),
+        ];
     }
 }

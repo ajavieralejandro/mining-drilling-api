@@ -54,6 +54,7 @@ class RbacSeeder extends Seeder
             // Observaciones
             ['name' => 'observations.view', 'module' => 'observaciones', 'description' => 'Ver libro de novedades y notas geológicas'],
             ['name' => 'observations.create', 'module' => 'observaciones', 'description' => 'Registrar observaciones en pozo'],
+            ['name' => 'observations.manage_types', 'module' => 'observaciones', 'description' => 'Administrar los tipos de observación de la organización'],
 
             // Riesgos
             ['name' => 'risks.view', 'module' => 'riesgos', 'description' => 'Ver matriz y listado de riesgos'],
@@ -137,6 +138,7 @@ class RbacSeeder extends Seeder
                     'geology.log_cores',
                     'observations.view',
                     'observations.create',
+                    'observations.manage_types',
                     'risks.view',
                     'risks.create',
                     'risks.close',

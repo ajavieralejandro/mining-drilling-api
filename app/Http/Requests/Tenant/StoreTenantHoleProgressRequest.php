@@ -19,7 +19,7 @@ class StoreTenantHoleProgressRequest extends FormRequest
             'depth_from' => ['required', 'numeric', 'min:0'],
             'depth_to' => ['required', 'numeric', 'min:0'],
             'hours_worked' => ['required', 'numeric', 'min:0.1', 'max:8.0'],
-            'shift' => ['nullable', 'string', 'in:1,2,Turno 1,Turno 2,A,B,C,a,b,c,shift_1,shift_2'],
+            'shift' => ['required', 'string', 'in:A,B,C,a,b,c'],
             'logged_at' => ['nullable', 'date'],
             'observations' => ['nullable', 'string', 'max:2000'],
             'idempotency_key' => ['required', 'string', 'min:8', 'max:64'],

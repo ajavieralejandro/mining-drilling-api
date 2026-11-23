@@ -29,6 +29,9 @@ use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
 use App\Http\Controllers\Api\Tenant\TenantMineController;
 use App\Http\Controllers\Api\Tenant\TenantMineHoleController;
+use App\Http\Controllers\Api\Tenant\TenantObservationController;
+use App\Http\Controllers\Api\Tenant\TenantPlanController;
+use App\Http\Controllers\Api\Tenant\TenantRiskController;
 use App\Http\Controllers\Api\Tenant\TenantOrganizationController;
 use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
 use App\Http\Controllers\Api\Tenant\TenantProjectController;
@@ -152,6 +155,34 @@ Route::middleware([
     Route::get('/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsShow']);
     Route::match(['put', 'patch'], '/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsUpdate']);
     Route::delete('/holes/{hole}/core-logs/{id}', [TenantHoleProgressController::class, 'coreLogsDestroy']);
+
+    // Bitácora de observaciones tipadas, tipos propios de la minera y geometría para vistas gráficas
+    Route::get('/observation-types', [TenantObservationController::class, 'types']);
+    Route::post('/observation-types', [TenantObservationController::class, 'storeType']);
+    Route::patch('/observation-types/{type}', [TenantObservationController::class, 'updateType']);
+    Route::get('/holes/{hole}/observations', [TenantObservationController::class, 'index']);
+    Route::post('/holes/{hole}/observations', [TenantObservationController::class, 'store']);
+    Route::get('/holes/{hole}/geometry', [TenantObservationController::class, 'geometry']);
+
+    // Riesgos: informe, mitigación y cierre (base de la minera)
+    Route::get('/risks', [TenantRiskController::class, 'index']);
+    Route::get('/holes/{hole}/risks', [TenantRiskController::class, 'holeIndex']);
+    Route::post('/holes/{hole}/risks', [TenantRiskController::class, 'store']);
+    Route::post('/risks/{risk}/mitigate', [TenantRiskController::class, 'mitigate']);
+    Route::post('/risks/{risk}/close', [TenantRiskController::class, 'close']);
+
+    // Planes de perforación, plataformas y pozos por plataforma (base de la minera)
+    Route::get('/plans', [TenantPlanController::class, 'index']);
+    Route::post('/plans', [TenantPlanController::class, 'store']);
+    Route::get('/plans/{plan}', [TenantPlanController::class, 'show']);
+    Route::patch('/plans/{plan}', [TenantPlanController::class, 'update']);
+    Route::delete('/plans/{plan}', [TenantPlanController::class, 'destroy']);
+    Route::post('/platforms', [TenantPlanController::class, 'storePlatform']);
+    Route::get('/platforms/{platform}', [TenantPlanController::class, 'showPlatform']);
+    Route::patch('/platforms/{platform}', [TenantPlanController::class, 'updatePlatform']);
+    Route::delete('/platforms/{platform}', [TenantPlanController::class, 'destroyPlatform']);
+    Route::post('/platforms/{platform}/holes', [TenantPlanController::class, 'attachHoles']);
+    Route::delete('/platforms/{platform}/holes/{hole}', [TenantPlanController::class, 'detachHole']);
 
     // Grupos de usuarios del Tenant
     Route::get('/groups', [TenantGroupController::class, 'index']);

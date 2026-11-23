@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Repositories\OrganizationStore;
 use App\Enums\UserRole;
 use App\Models\Connector;
 use App\Models\ConnectorCommand;
@@ -36,6 +37,10 @@ class TenantGatewayTest extends TestCase
             'connector.demo_command_timeout_seconds' => 1,
             'connector.demo_poll_interval_ms' => 50,
         ]);
+
+        // The hole list also asks the connector for each hole's mine; these
+        // tests are about the hole commands, so the hierarchy is stubbed.
+        $this->app->instance(OrganizationStore::class, new FakeOrganizationStore);
     }
 
     /**
@@ -539,6 +544,76 @@ class TenantGatewayTest extends TestCase
             ->assertJsonPath('data.0.status', 'in_progress')
             ->assertJsonPath('request_id', 'req_happy_path')
             ->assertJsonPath('correlation_id', 'cor_happy_path');
+    }
+
+    /**
+     * ADR-04: the hole list is answered from the connector result, and then
+     * neither the request payload nor the returned rows stay in the control
+     * plane database.
+     */
+    public function test_list_purges_command_data_after_answering(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $connector = $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $command = $this->persistedCommand($tenant, $connector, 'drill_holes.list@1', [
+            'items' => [['id' => '1001', 'code' => 'RLEK-01', 'status' => 'in_progress']],
+        ]);
+        $this->fakeDispatcherReturning($command);
+
+        $this->getJson('/api/tenant/holes')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', 'RLEK-01');
+
+        $stored = ConnectorCommand::query()->findOrFail($command->id);
+        $this->assertSame([], $stored->payload_json);
+        $this->assertNull($stored->result_json);
+        $this->assertSame(ConnectorCommand::STATUS_COMPLETED, $stored->status);
+        $this->assertSame($command->request_id, $stored->request_id);
+    }
+
+    public function test_detail_purges_command_data_even_when_the_connector_fails(): void
+    {
+        [$user, $tenant] = $this->makeUserWithMembership();
+        $connector = $this->onlineConnectorFor($tenant);
+        Sanctum::actingAs($user);
+
+        $command = $this->persistedCommand($tenant, $connector, 'drill_holes.get@1', null, [
+            'status' => ConnectorCommand::STATUS_FAILED,
+            'error_code' => 'NOT_FOUND',
+            'payload_json' => ['id' => '1001'],
+        ]);
+        $this->fakeDispatcherReturning($command);
+
+        $this->getJson('/api/tenant/holes/1001')->assertStatus(404);
+
+        $stored = ConnectorCommand::query()->findOrFail($command->id);
+        $this->assertSame([], $stored->payload_json);
+        $this->assertNull($stored->result_json);
+        $this->assertSame('NOT_FOUND', $stored->error_code);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $result
+     * @param  array<string, mixed>  $overrides
+     */
+    private function persistedCommand(Tenant $tenant, Connector $connector, string $op, ?array $result, array $overrides = []): ConnectorCommand
+    {
+        return ConnectorCommand::create(array_merge([
+            'id' => (string) Str::ulid(),
+            'request_id' => 'req_'.(string) Str::ulid(),
+            'correlation_id' => 'cor_'.(string) Str::ulid(),
+            'tenant_id' => $tenant->id,
+            'connector_id' => $connector->id,
+            'op' => $op,
+            'payload_json' => ['limit' => 10],
+            'status' => ConnectorCommand::STATUS_COMPLETED,
+            'result_json' => $result,
+            'deadline_at' => now()->addMinute(),
+            'dispatched_at' => now(),
+            'completed_at' => now(),
+        ], $overrides));
     }
 
     public function test_list_forwards_aborted_hole_without_inferring_it_from_depth(): void

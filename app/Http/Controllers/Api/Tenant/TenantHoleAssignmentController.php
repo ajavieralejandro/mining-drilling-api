@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenant\StoreTenantHoleAssignmentRequest;
-use App\Http\Resources\Tenant\TenantHoleAssignmentResource;
 use App\Policies\TenantHoleAssignmentPolicy;
 use App\Services\Tenant\TenantHoleAssignmentService;
 use App\Services\Tenant\TenantHoleOriginResolver;
@@ -36,20 +35,17 @@ class TenantHoleAssignmentController extends Controller
             return $e->toResponse();
         }
 
-        $originId = $resolved['origin_id'];
         $holeItem = $resolved['item'];
-
-        $crewData = $this->assignmentService->getCrewForHole($context->tenantId, $originId, $hole);
-        $history = $this->assignmentService->listAssignments($context->tenantId, $originId, $hole);
+        $crewData = $this->assignmentService->getCrewForHole($context, $hole, $correlation->id);
 
         return response()->json([
             'data' => [
                 'hole_id' => $hole,
-                'origin_id' => $originId,
+                'origin_id' => $crewData['origin_id'] ?? $resolved['origin_id'],
                 'hole_status' => $holeItem['status'] ?? null,
                 'crew' => $crewData['crew'],
                 'active_count' => $crewData['active_count'],
-                'assignments' => TenantHoleAssignmentResource::collection($history),
+                'assignments' => $crewData['history'],
             ],
             'request_id' => $resolved['request_id'] ?? $correlation->id,
             'correlation_id' => $correlation->id,
@@ -75,22 +71,13 @@ class TenantHoleAssignmentController extends Controller
             return $e->toResponse();
         }
 
-        $originId = $resolved['origin_id'];
-        $holeItem = $resolved['item'];
-
-        $updatedCrew = $this->assignmentService->assignCrew(
-            $context,
-            $originId,
-            $hole,
-            $request->validated(),
-            $holeItem,
-        );
+        $updatedCrew = $this->assignmentService->assignCrew($context, $hole, $request->validated(), $correlation->id);
 
         return response()->json([
             'message' => 'Cuadrilla actualizada exitosamente.',
             'data' => [
                 'hole_id' => $hole,
-                'origin_id' => $originId,
+                'origin_id' => $updatedCrew['origin_id'] ?? $resolved['origin_id'],
                 'crew' => $updatedCrew['crew'],
                 'active_count' => $updatedCrew['active_count'],
             ],

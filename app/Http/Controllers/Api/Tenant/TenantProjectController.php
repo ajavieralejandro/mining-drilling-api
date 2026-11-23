@@ -2,79 +2,64 @@
 
 namespace App\Http\Controllers\Api\Tenant;
 
+use App\Domain\Repositories\OrganizationStore;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Tenant\TenantProjectResource;
+use App\Http\Resources\Tenant\OrganizationPresenter;
 use App\Models\Tenant;
-use App\Models\TenantMineHole;
 use App\Models\TenantProject;
 use App\Policies\TenantStructurePolicy;
+use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
+/**
+ * Projects of the tenant. They live in the client database, reached through
+ * its connector; code uniqueness is checked there, in the same transaction
+ * that writes the row.
+ */
 class TenantProjectController extends Controller
 {
     public function __construct(
         private readonly TenantStructurePolicy $policy,
+        private readonly OrganizationStore $organization,
     ) {}
 
-    public function index(Request $request, TenantContext $context): JsonResponse
+    public function index(Request $request, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->view($request->user(), $context)) {
-            return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado.']], 403);
+            return $this->forbidden('Acceso denegado.');
         }
 
         $includes = collect(explode(',', (string) $request->query('include', '')))
             ->map(fn (string $v) => trim($v))
             ->filter()
             ->all();
+        $withHoles = in_array('holes', $includes, true);
+        $withMines = $withHoles || in_array('mines', $includes, true);
 
-        $query = TenantProject::query()
-            ->where('tenant_id', $context->tenantId)
-            ->withCount(['mines', 'mineHoles'])
-            ->orderBy('name');
-
-        if ($request->filled('status')) {
-            $query->where('status', (string) $request->query('status'));
+        $status = $request->filled('status') ? (string) $request->query('status') : null;
+        if ($status !== null && ! in_array($status, TenantProject::VALID_STATUSES, true)) {
+            return response()->json(['data' => [], 'total' => 0]);
         }
 
-        if (in_array('mines', $includes, true) || in_array('holes', $includes, true)) {
-            $query->with(['mines' => function ($q) use ($includes) {
-                $q->withCount('holeLinks')->orderBy('name');
-                if (in_array('holes', $includes, true)) {
-                    $q->with(['holeLinks' => fn ($hq) => $hq->orderBy('hole_code')->orderBy('hole_id')]);
-                }
-            }]);
-        }
-
-        $projects = $query->get();
+        $projects = $this->organization->listProjects($context, $status, $withMines, $withHoles, $correlation->id);
 
         return response()->json([
-            'data' => TenantProjectResource::collection($projects),
-            'total' => $projects->count(),
+            'data' => OrganizationPresenter::projects($projects, $context->tenantId),
+            'total' => count($projects),
         ]);
     }
 
-    public function hierarchy(Request $request, TenantContext $context): JsonResponse
+    public function hierarchy(Request $request, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->view($request->user(), $context)) {
-            return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado.']], 403);
+            return $this->forbidden('Acceso denegado.');
         }
 
         $tenant = Tenant::query()->findOrFail($context->tenantId);
-
-        $projects = TenantProject::query()
-            ->where('tenant_id', $context->tenantId)
-            ->withCount(['mines', 'mineHoles'])
-            ->with(['mines' => function ($q) {
-                $q->withCount('holeLinks')
-                    ->with(['holeLinks' => fn ($hq) => $hq->orderBy('hole_code')->orderBy('hole_id')])
-                    ->orderBy('name');
-            }])
-            ->orderBy('name')
-            ->get();
+        $projects = $this->organization->listProjects($context, null, true, true, $correlation->id);
 
         return response()->json([
             'data' => [
@@ -82,170 +67,112 @@ class TenantProjectController extends Controller
                     'id' => $tenant->id,
                     'name' => $tenant->name,
                 ],
-                'projects' => TenantProjectResource::collection($projects),
+                'projects' => OrganizationPresenter::projects($projects, $context->tenantId),
             ],
         ]);
     }
 
-    public function store(Request $request, TenantContext $context): JsonResponse
+    public function store(Request $request, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->manageProjects($request->user(), $context)) {
-            return response()->json([
-                'error' => ['code' => 'FORBIDDEN', 'message' => 'No autorizado para crear proyectos.'],
-            ], 403);
+            return $this->forbidden('No autorizado para crear proyectos.');
         }
 
-        $normalizedCode = $this->normalizeCode($request->input('code'));
-        if ($normalizedCode !== $request->input('code')) {
-            $request->merge(['code' => $normalizedCode]);
-        }
-
+        $this->normalizeCodeInput($request);
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:160'],
-            'code' => [
-                'nullable',
-                'string',
-                'max:64',
-                Rule::unique('tenant_projects', 'code')->where('tenant_id', $context->tenantId),
-            ],
+            'code' => ['nullable', 'string', 'max:64'],
             'status' => ['nullable', 'string', Rule::in(TenantProject::VALID_STATUSES)],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $project = TenantProject::create([
-            'tenant_id' => $context->tenantId,
-            'code' => $validated['code'] ?? null,
+        $project = $this->organization->saveProject($context, null, [
             'name' => trim($validated['name']),
+            'code' => $validated['code'] ?? null,
             'status' => $validated['status'] ?? TenantProject::STATUS_ACTIVE,
             'description' => $validated['description'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
+        ], $correlation->id);
 
-        $project->loadCount(['mines', 'mineHoles']);
-
-        return (new TenantProjectResource($project))
-            ->additional(['message' => 'Proyecto creado correctamente.'])
-            ->response()
-            ->setStatusCode(201);
+        return response()->json([
+            'data' => OrganizationPresenter::project($project, $context->tenantId),
+            'message' => 'Proyecto creado correctamente.',
+        ], 201);
     }
 
-    public function show(Request $request, string $project, TenantContext $context): JsonResponse
+    public function show(Request $request, string $project, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->view($request->user(), $context)) {
-            return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado.']], 403);
+            return $this->forbidden('Acceso denegado.');
         }
 
-        $model = TenantProject::query()
-            ->where('tenant_id', $context->tenantId)
-            ->withCount(['mines', 'mineHoles'])
-            ->with(['mines' => function ($q) {
-                $q->withCount('holeLinks')
-                    ->with(['holeLinks' => fn ($hq) => $hq->orderBy('hole_code')->orderBy('hole_id')])
-                    ->orderBy('name');
-            }])
-            ->find($project);
-
-        if (! $model) {
-            return response()->json(['error' => ['code' => 'NOT_FOUND', 'message' => 'Proyecto no encontrado.']], 404);
+        $row = $this->organization->getProject($context, $project, $correlation->id);
+        if ($row === null) {
+            return $this->notFound();
         }
 
-        return (new TenantProjectResource($model))->response();
+        return response()->json(['data' => OrganizationPresenter::project($row, $context->tenantId)]);
     }
 
-    public function update(Request $request, string $project, TenantContext $context): JsonResponse
+    public function update(Request $request, string $project, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->manageProjects($request->user(), $context)) {
-            return response()->json([
-                'error' => ['code' => 'FORBIDDEN', 'message' => 'No autorizado para editar proyectos.'],
-            ], 403);
+            return $this->forbidden('No autorizado para editar proyectos.');
         }
 
-        $model = TenantProject::query()
-            ->where('tenant_id', $context->tenantId)
-            ->find($project);
-
-        if (! $model) {
-            return response()->json(['error' => ['code' => 'NOT_FOUND', 'message' => 'Proyecto no encontrado.']], 404);
-        }
-
-        if ($request->has('code')) {
-            $request->merge(['code' => $this->normalizeCode($request->input('code'))]);
-        }
-
+        $this->normalizeCodeInput($request);
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'min:2', 'max:160'],
-            'code' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:64',
-                Rule::unique('tenant_projects', 'code')
-                    ->where('tenant_id', $context->tenantId)
-                    ->ignore($model->id),
-            ],
+            'code' => ['sometimes', 'nullable', 'string', 'max:64'],
             'status' => ['sometimes', 'string', Rule::in(TenantProject::VALID_STATUSES)],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
-
         if (isset($validated['name'])) {
-            $model->name = trim($validated['name']);
-        }
-        if (array_key_exists('code', $validated)) {
-            $model->code = $validated['code'];
-        }
-        if (isset($validated['status'])) {
-            $model->status = $validated['status'];
-        }
-        if (array_key_exists('description', $validated)) {
-            $model->description = $validated['description'];
+            $validated['name'] = trim($validated['name']);
         }
 
-        $model->save();
-        $model->loadCount(['mines', 'mineHoles']);
+        $row = $validated === []
+            ? $this->organization->getProject($context, $project, $correlation->id)
+            : $this->organization->saveProject($context, $project, $validated, $correlation->id);
+        if ($row === null) {
+            return $this->notFound();
+        }
 
-        return (new TenantProjectResource($model))
-            ->additional(['message' => 'Proyecto actualizado correctamente.'])
-            ->response();
+        return response()->json([
+            'data' => OrganizationPresenter::project($row, $context->tenantId),
+            'message' => 'Proyecto actualizado correctamente.',
+        ]);
     }
 
-    public function destroy(Request $request, string $project, TenantContext $context): JsonResponse
+    public function destroy(Request $request, string $project, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         if (! $this->policy->manageProjects($request->user(), $context)) {
-            return response()->json([
-                'error' => ['code' => 'FORBIDDEN', 'message' => 'No autorizado para eliminar proyectos.'],
-            ], 403);
+            return $this->forbidden('No autorizado para eliminar proyectos.');
         }
 
-        $model = TenantProject::query()
-            ->where('tenant_id', $context->tenantId)
-            ->find($project);
-
-        if (! $model) {
-            return response()->json(['error' => ['code' => 'NOT_FOUND', 'message' => 'Proyecto no encontrado.']], 404);
+        if (! $this->organization->deleteProject($context, $project, $correlation->id)) {
+            return $this->notFound();
         }
-
-        DB::transaction(function () use ($model, $context) {
-            $mineIds = $model->mines()->pluck('id')->all();
-            if (! empty($mineIds)) {
-                TenantMineHole::query()
-                    ->where('tenant_id', $context->tenantId)
-                    ->whereIn('mine_id', $mineIds)
-                    ->delete();
-                $model->mines()->delete();
-            }
-            $model->delete();
-        });
 
         return response()->json(['message' => 'Proyecto eliminado correctamente.']);
     }
 
-    private function normalizeCode(mixed $code): ?string
+    private function normalizeCodeInput(Request $request): void
     {
-        if (! is_string($code)) {
-            return null;
+        if (! $request->has('code')) {
+            return;
         }
-        $trimmed = trim($code);
+        $code = $request->input('code');
+        $trimmed = is_string($code) ? trim($code) : '';
+        $request->merge(['code' => $trimmed === '' ? null : strtoupper($trimmed)]);
+    }
 
-        return $trimmed === '' ? null : strtoupper($trimmed);
+    private function forbidden(string $message): JsonResponse
+    {
+        return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => $message]], 403);
+    }
+
+    private function notFound(): JsonResponse
+    {
+        return response()->json(['error' => ['code' => 'NOT_FOUND', 'message' => 'Proyecto no encontrado.']], 404);
     }
 }

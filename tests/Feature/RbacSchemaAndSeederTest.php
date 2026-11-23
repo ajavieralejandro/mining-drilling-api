@@ -65,7 +65,9 @@ class RbacSchemaAndSeederTest extends TestCase
         $this->assertFalse($geologistRole->hasPermission('roles.manage'));
         $this->assertFalse($geologistRole->hasPermission('users.manage'));
         $this->assertFalse($geologistRole->hasPermission('tenants.manage'));
-        $this->assertEquals($totalPermissions - 4, $geologistRole->permissions()->count());
+        // The company's observation types are managed by its admin only.
+        $this->assertFalse($geologistRole->hasPermission('observations.manage_types'));
+        $this->assertEquals($totalPermissions - 5, $geologistRole->permissions()->count());
 
         // Verifica que el rol geotechnical puede importar CSV/planos, ver RQD, avances, cuadrillas y maquinaria
         $geotechnicalRole = Role::where('slug', 'geotechnical')->firstOrFail();

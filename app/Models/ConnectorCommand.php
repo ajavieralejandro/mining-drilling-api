@@ -41,12 +41,37 @@ class ConnectorCommand extends Model
     protected function casts(): array
     {
         return [
-            'payload_json' => 'array',
-            'result_json' => 'array',
+            // Encrypted while the command is in flight; purged once read (ADR-04).
+            'payload_json' => 'encrypted:array',
+            'result_json' => 'encrypted:array',
             'deadline_at' => 'datetime',
             'dispatched_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * ADR-04: once the caller has read what it needs, the operational data
+     * sent to and returned by the connector must not stay in the control
+     * plane. Envelope metadata (ids, op, status, error code, timings) stays
+     * for auditing. Source configuration commands keep their data because the
+     * connection screen reads it later; it holds no operational rows.
+     */
+    public function purgeOperationalData(): void
+    {
+        if (self::retainsData((string) $this->op) || ! $this->exists) {
+            return;
+        }
+
+        $this->forceFill([
+            'payload_json' => [],
+            'result_json' => null,
+        ])->save();
+    }
+
+    public static function retainsData(string $op): bool
+    {
+        return str_starts_with($op, 'source_config.');
     }
 
     public function tenant(): BelongsTo

@@ -25,15 +25,19 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 
         $command = $this->dispatchHole($connector, 'drill_holes.list@1', ['limit' => $limit], $context->userId, $correlationId);
 
-        $this->assertOk($command);
+        try {
+            $this->assertOk($command);
 
-        return [
-            'items' => $this->requireListItems($command),
-            'origin_id' => $this->originId($command),
-            'connector' => $connector,
-            'request_id' => $command->request_id,
-            'correlation_id' => $command->correlation_id,
-        ];
+            return [
+                'items' => $this->requireListItems($command),
+                'origin_id' => $this->originId($command),
+                'connector' => $connector,
+                'request_id' => $command->request_id,
+                'correlation_id' => $command->correlation_id,
+            ];
+        } finally {
+            $command->purgeOperationalData();
+        }
     }
 
     public function find(TenantContext $context, string $correlationId, string $holeId): array
@@ -42,15 +46,19 @@ class GatewayTenantHoleRepository implements TenantHoleRepositoryInterface
 
         $command = $this->dispatchHole($connector, 'drill_holes.get@1', ['id' => $holeId], $context->userId, $correlationId);
 
-        $this->assertOk($command);
+        try {
+            $this->assertOk($command);
 
-        return [
-            'item' => $command->result_json['item'] ?? [],
-            'origin_id' => $this->originId($command),
-            'connector' => $connector,
-            'request_id' => $command->request_id,
-            'correlation_id' => $command->correlation_id,
-        ];
+            return [
+                'item' => $command->result_json['item'] ?? [],
+                'origin_id' => $this->originId($command),
+                'connector' => $connector,
+                'request_id' => $command->request_id,
+                'correlation_id' => $command->correlation_id,
+            ];
+        } finally {
+            $command->purgeOperationalData();
+        }
     }
 
     /**
