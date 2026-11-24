@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Tenant\TenantGroupController;
 use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
+use App\Http\Controllers\Api\Tenant\TenantHoleRegistrationController;
 use App\Http\Controllers\Api\Tenant\TenantMineController;
 use App\Http\Controllers\Api\Tenant\TenantMineHoleController;
 use App\Http\Controllers\Api\Tenant\TenantObservationController;
@@ -126,6 +127,11 @@ Route::middleware([
     Route::post('/connection/source/apply', [TenantSourceConfigController::class, 'apply']);
     Route::get('/holes', [TenantHoleController::class, 'index']);
     Route::get('/holes/{hole}', [TenantHoleController::class, 'show']);
+
+    // Pozos registrados desde UndSurf (undsurf_holes, en la base de la minera)
+    Route::post('/holes', [TenantHoleRegistrationController::class, 'store']);
+    Route::patch('/holes/{hole}', [TenantHoleRegistrationController::class, 'update']);
+    Route::get('/holes/{hole}/registration', [TenantHoleRegistrationController::class, 'show']);
 
     // Cuadrillas / Asignaciones en pozos del Gateway
     Route::get('/holes/{hole}/assignments', [TenantHoleAssignmentController::class, 'index']);

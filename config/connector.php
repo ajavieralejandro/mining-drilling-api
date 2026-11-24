@@ -58,5 +58,7 @@ return [
         'platforms.delete@1',
         'platform_holes.attach@1',
         'platform_holes.detach@1',
+        'holes.get@1',
+        'holes.upsert@1',
     ],
 ];

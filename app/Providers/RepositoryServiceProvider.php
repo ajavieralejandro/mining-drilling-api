@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Domain\Repositories\HoleRecordsStore;
+use App\Domain\Repositories\HoleRegistry;
 use App\Domain\Repositories\ObservationStore;
 use App\Domain\Repositories\OrganizationStore;
 use App\Domain\Repositories\PlanStore;
 use App\Domain\Repositories\RiskStore;
 use App\Domain\Repositories\TenantHoleRepositoryInterface;
 use App\Repositories\Gateway\GatewayHoleRecordsStore;
+use App\Repositories\Gateway\GatewayHoleRegistry;
 use App\Repositories\Gateway\GatewayObservationStore;
 use App\Repositories\Gateway\GatewayOrganizationStore;
 use App\Repositories\Gateway\GatewayPlanStore;
@@ -31,5 +33,6 @@ class RepositoryServiceProvider extends ServiceProvider
         $this->app->bind(ObservationStore::class, GatewayObservationStore::class);
         $this->app->bind(RiskStore::class, GatewayRiskStore::class);
         $this->app->bind(PlanStore::class, GatewayPlanStore::class);
+        $this->app->bind(HoleRegistry::class, GatewayHoleRegistry::class);
     }
 }
