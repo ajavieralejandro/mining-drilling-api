@@ -74,7 +74,7 @@ class PollController extends Controller
                 'connector_id' => $command->connector_id,
                 'tenant_id' => $command->tenant_id,
                 'op' => $command->op,
-                'payload' => $command->payload_json,
+                'payload' => self::wirePayload($command->payload_json),
                 'deadline' => $command->deadline_at->toIso8601String(),
             ];
         }
@@ -85,6 +85,28 @@ class PollController extends Controller
             'protocol_version' => config('connector.protocol_version'),
             'commands' => $payload,
         ]);
+    }
+
+    /**
+     * The connector decodes the payload and its "fields" map as JSON objects.
+     * PHP cannot tell an empty map from an empty list once the payload has been
+     * stored as an array, and would send [], which the connector rejects as
+     * INVALID_PAYLOAD.
+     *
+     * @param  array<string, mixed>|null  $payload
+     * @return array<string, mixed>|\stdClass
+     */
+    private static function wirePayload(?array $payload): array|\stdClass
+    {
+        if ($payload === null || $payload === []) {
+            return new \stdClass;
+        }
+
+        if (($payload['fields'] ?? null) === []) {
+            $payload['fields'] = new \stdClass;
+        }
+
+        return $payload;
     }
 
     private function error(string $code, string $message, int $status): JsonResponse

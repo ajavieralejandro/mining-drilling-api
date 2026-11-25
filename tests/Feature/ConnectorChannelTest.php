@@ -89,6 +89,49 @@ class ConnectorChannelTest extends TestCase
         $this->assertTrue($connector->isOnline());
     }
 
+    /**
+     * The connector decodes payloads into objects: an empty one sent as []
+     * is rejected, e.g. mines.list@1 without filters.
+     */
+    public function test_poll_sends_empty_payload_and_fields_as_objects(): void
+    {
+        $ctx = $this->onlineConnector();
+
+        foreach ([
+            ['mines.list@1', []],
+            ['mines.upsert@1', ['fields' => (object) [], 'user_id' => '7']],
+            ['mine_holes.lookup@1', ['hole_ids' => []]],
+        ] as $i => [$op, $payload]) {
+            ConnectorCommand::create([
+                'id' => (string) Str::ulid(),
+                'request_id' => 'req_empty_'.$i,
+                'correlation_id' => 'cor_empty_'.$i,
+                'tenant_id' => $ctx['tenant_id'],
+                'connector_id' => $ctx['connector_id'],
+                'op' => $op,
+                'payload_json' => $payload,
+                'status' => ConnectorCommand::STATUS_PENDING,
+                'deadline_at' => now()->addSeconds(30),
+                'dispatched_at' => now()->subSeconds(10 - $i),
+            ]);
+        }
+
+        $poll = $this->withToken($ctx['connector_token'])->postJson('/api/connector/v1/poll', [
+            'protocol_version' => '1.0',
+            'connector_id' => $ctx['connector_id'],
+            'session_id' => $ctx['session_id'],
+            'wait_seconds' => 0,
+        ])->assertOk();
+
+        // Decoded as objects on purpose: json() would turn {} into [].
+        $commands = json_decode($poll->getContent())->commands;
+
+        $this->assertEquals(new \stdClass, $commands[0]->payload);
+        $this->assertEquals(new \stdClass, $commands[1]->payload->fields);
+        $this->assertSame('7', $commands[1]->payload->user_id);
+        $this->assertSame([], $commands[2]->payload->hole_ids);
+    }
+
     public function test_poll_delivers_command_and_result_completes_with_audit(): void
     {
         $ctx = $this->onlineConnector();
