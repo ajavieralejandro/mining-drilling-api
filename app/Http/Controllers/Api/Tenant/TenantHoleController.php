@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Tenant;
 use App\Domain\Repositories\OrganizationStore;
 use App\Domain\Repositories\TenantHoleRepositoryInterface;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\Tenant\HoleAccess;
 use App\Support\GatewayException;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
@@ -24,15 +26,21 @@ class TenantHoleController extends Controller
     public function __construct(
         private readonly TenantHoleRepositoryInterface $holes,
         private readonly OrganizationStore $organization,
+        private readonly HoleAccess $access,
     ) {}
 
     public function index(Request $request, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         $limit = (int) ($request->query('limit', 10));
         $limit = $limit > 0 ? min($limit, 50) : 10;
+        $user = $request->user();
+
+        if (! $this->access->seesAssigned($user, $context)) {
+            return $this->forbidden();
+        }
 
         try {
-            $result = $this->holes->list($context, $correlation->id, $limit);
+            $result = $this->visibleHoles($user, $context, $correlation->id, $limit);
         } catch (GatewayException $e) {
             return $e->toResponse();
         }
@@ -67,9 +75,12 @@ class TenantHoleController extends Controller
         ]);
     }
 
-    public function show(string $hole, TenantContext $context, RequestCorrelation $correlation): JsonResponse
+    public function show(Request $request, string $hole, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
         try {
+            if (! $this->access->canSee($request->user(), $context, $hole, $correlation->id)) {
+                return $this->forbidden();
+            }
             $result = $this->holes->find($context, $correlation->id, $hole);
         } catch (GatewayException $e) {
             return $e->toResponse();
@@ -87,6 +98,57 @@ class TenantHoleController extends Controller
             'request_id' => $result['request_id'],
             'correlation_id' => $result['correlation_id'],
         ]);
+    }
+
+    /**
+     * Holes the person may see. Whoever sees every hole gets the usual list;
+     * a crew member gets their assigned holes, read one by one. On a
+     * connector without assignments.by_user@1 the usual list is filtered by
+     * each hole's crew instead.
+     *
+     * @return array{items: list<array<string, mixed>>, origin_id?: ?string, request_id: ?string, correlation_id: string}
+     */
+    private function visibleHoles(User $user, TenantContext $context, string $correlationId, int $limit): array
+    {
+        try {
+            $ids = $this->access->assignedHoleIds($user, $context, $correlationId);
+        } catch (GatewayException $e) {
+            if ($e->errorCode !== 'UNSUPPORTED_OP') {
+                throw $e;
+            }
+            $result = $this->holes->list($context, $correlationId, $limit);
+            $result['items'] = $this->access->filterVisible($user, $context, $result['items'], $correlationId);
+
+            return $result;
+        }
+
+        if ($ids === null) {
+            return $this->holes->list($context, $correlationId, $limit);
+        }
+
+        $items = [];
+        $meta = ['origin_id' => null, 'request_id' => null, 'correlation_id' => $correlationId];
+        foreach (array_slice($ids, 0, $limit) as $id) {
+            try {
+                $found = $this->holes->find($context, $correlationId, $id);
+            } catch (GatewayException $e) {
+                // An assignment can outlive its hole in the client database.
+                if ($e->errorCode === 'NOT_FOUND') {
+                    continue;
+                }
+                throw $e;
+            }
+            $items[] = $found['item'];
+            $meta['origin_id'] ??= $found['origin_id'] ?? null;
+            $meta['request_id'] ??= $found['request_id'] ?? null;
+        }
+
+        return ['items' => $items] + $meta;
+    }
+
+    private function forbidden(): JsonResponse
+    {
+        return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Este pozo no está asignado a tu cuadrilla.']], 403);
     }
 
     /**

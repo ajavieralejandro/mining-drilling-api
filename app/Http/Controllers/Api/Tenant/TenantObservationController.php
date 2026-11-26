@@ -9,6 +9,7 @@ use App\Http\Resources\Tenant\ObservationPresenter;
 use App\Http\Resources\Tenant\RiskPresenter;
 use App\Policies\TenantObservationPolicy;
 use App\Policies\TenantRiskPolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -84,6 +85,9 @@ class TenantObservationController extends Controller
         if (! $this->policy->view($request->user(), $context)) {
             return $this->forbidden('No autorizado para ver observaciones.');
         }
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
+        }
         $perPage = min(max((int) $request->query('per_page', 20), 1), 100);
         $page = max((int) $request->query('page', 1), 1);
         $typeId = $request->filled('type_id') ? (string) $request->query('type_id') : null;
@@ -132,6 +136,9 @@ class TenantObservationController extends Controller
 
     public function geometry(Request $request, string $hole, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
+        }
         $geometry = $this->observations->geometry($context, $hole, $correlation->id);
         if (! $this->policy->view($request->user(), $context)) {
             $geometry['marks'] = [];

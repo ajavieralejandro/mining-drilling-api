@@ -81,6 +81,15 @@ interface HoleRecordsStore
     public function crew(TenantContext $context, string $holeId, string $correlationId): array;
 
     /**
+     * Active assignments of one person across every hole, newest first.
+     * Throws GatewayException UNSUPPORTED_OP on a connector without
+     * assignments.by_user@1.
+     *
+     * @return array{active: list<array<string, mixed>>, origin_id: ?string}
+     */
+    public function assignmentsOf(TenantContext $context, int $userId, string $correlationId): array;
+
+    /**
      * Changes the roles given in $roles (role => user id, null releases the
      * role). $mode is "crew" or "single" and decides which field a broken
      * crew rule is reported on.

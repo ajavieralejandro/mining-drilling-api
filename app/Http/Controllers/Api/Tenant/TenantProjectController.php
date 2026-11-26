@@ -8,6 +8,7 @@ use App\Http\Resources\Tenant\OrganizationPresenter;
 use App\Models\Tenant;
 use App\Models\TenantProject;
 use App\Policies\TenantStructurePolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -60,6 +61,11 @@ class TenantProjectController extends Controller
 
         $tenant = Tenant::query()->findOrFail($context->tenantId);
         $projects = $this->organization->listProjects($context, null, true, true, $correlation->id);
+        // Plan 15, C3: whoever sees only assigned holes gets only the branch that holds them.
+        $visible = app(HoleAccess::class)->visibleHoleIds($request->user(), $context, $correlation->id);
+        if ($visible !== null) {
+            $projects = HoleAccess::onlyHierarchy($projects, $visible);
+        }
 
         return response()->json([
             'data' => [

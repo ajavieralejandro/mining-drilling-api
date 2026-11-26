@@ -29,6 +29,7 @@ return [
         'core_logs.delete@1',
         'assignments.list@1',
         'assignments.put@1',
+        'assignments.by_user@1',
         'projects.list@1',
         'projects.get@1',
         'projects.upsert@1',

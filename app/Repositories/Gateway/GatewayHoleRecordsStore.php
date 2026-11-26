@@ -171,6 +171,16 @@ class GatewayHoleRecordsStore implements HoleRecordsStore
         ];
     }
 
+    public function assignmentsOf(TenantContext $context, int $userId, string $correlationId): array
+    {
+        $result = $this->run($context, 'assignments.by_user@1', ['user_id' => (string) $userId], $correlationId);
+
+        return [
+            'active' => self::rows($result['active'] ?? [], $correlationId),
+            'origin_id' => $result['origin_id'] ?? null,
+        ];
+    }
+
     public function assignCrew(TenantContext $context, string $holeId, string $mode, array $roles, array $extra, string $correlationId): array
     {
         $payload = [

@@ -6,6 +6,7 @@ use App\Domain\Repositories\OrganizationStore;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Tenant\OrganizationPresenter;
 use App\Policies\TenantStructurePolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +34,10 @@ class TenantMineHoleController extends Controller
         $links = $this->organization->mineHoles($context, $mine, $correlation->id);
         if ($links === null) {
             return $this->mineNotFound();
+        }
+        $visible = app(HoleAccess::class)->visibleHoleIds($request->user(), $context, $correlation->id);
+        if ($visible !== null) {
+            $links = HoleAccess::onlyLinks($links, $visible);
         }
 
         return response()->json([

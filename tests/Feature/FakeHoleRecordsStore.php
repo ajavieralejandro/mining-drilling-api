@@ -317,6 +317,23 @@ class FakeHoleRecordsStore implements HoleRecordsStore
         ];
     }
 
+    /** Simulates a connector without assignments.by_user@1. */
+    public bool $supportsAssignmentsByUser = true;
+
+    public function assignmentsOf(TenantContext $context, int $userId, string $correlationId): array
+    {
+        $this->calls[] = ['op' => 'assignments.by_user@1', 'payload' => ['user_id' => (string) $userId]];
+        if (! $this->supportsAssignmentsByUser) {
+            throw new GatewayException('UNSUPPORTED_OP', 'El conector no admite esta operación.', 422, null, 'cor_test');
+        }
+        $active = array_values(array_filter(
+            $this->assignments,
+            fn ($a) => $a['active'] && (string) $a['user_id'] === (string) $userId,
+        ));
+
+        return ['active' => array_reverse($active), 'origin_id' => $this->originId];
+    }
+
     public function assignCrew(TenantContext $context, string $holeId, string $mode, array $roles, array $extra, string $correlationId): array
     {
         $this->calls[] = ['op' => 'assignments.put@1', 'payload' => compact('holeId', 'mode', 'roles', 'extra')];

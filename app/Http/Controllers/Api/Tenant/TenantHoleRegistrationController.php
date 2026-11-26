@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Tenant;
 use App\Domain\Repositories\HoleRegistry;
 use App\Http\Controllers\Controller;
 use App\Policies\TenantHolePolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,9 @@ class TenantHoleRegistrationController extends Controller
 
     public function show(Request $request, string $hole, TenantContext $context, RequestCorrelation $correlation): JsonResponse
     {
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
+        }
         $row = $this->holes->find($context, $hole, $correlation->id);
 
         return $row === null ? $this->notFound() : response()->json([

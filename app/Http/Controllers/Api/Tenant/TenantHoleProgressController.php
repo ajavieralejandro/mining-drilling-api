@@ -11,6 +11,7 @@ use App\Http\Requests\Tenant\UpdateTenantCoreLogRequest;
 use App\Http\Resources\Tenant\CoreLogPresenter;
 use App\Http\Resources\Tenant\ProgressReportPresenter;
 use App\Policies\TenantHoleProgressPolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Services\Tenant\TenantHoleAssignmentService;
 use App\Services\Tenant\TenantHoleOperationalStateService;
 use App\Services\Tenant\TenantHoleOriginResolver;
@@ -35,6 +36,9 @@ class TenantHoleProgressController extends Controller
     {
         if (! $this->policy->viewAny($request->user(), $context)) {
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
+        }
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
         }
 
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
@@ -69,6 +73,10 @@ class TenantHoleProgressController extends Controller
         }
 
         $log = $this->progressService->getProgress($context, $id, $correlation->id);
+        $hole = (string) ($log['hole_id'] ?? '');
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
+        }
 
         return response()->json([
             'data' => ProgressReportPresenter::one($log, $context->tenantId, $log['origin_id'] ?? null),
@@ -233,6 +241,9 @@ class TenantHoleProgressController extends Controller
         if (! $this->policy->viewAny($request->user(), $context)) {
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
         }
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
+        }
 
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');
 
@@ -261,6 +272,9 @@ class TenantHoleProgressController extends Controller
     {
         if (! $this->policy->viewAny($request->user(), $context)) {
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
+        }
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
         }
 
         $coreLog = $this->progressService->getCoreLog($context, $hole, $id, $correlation->id);

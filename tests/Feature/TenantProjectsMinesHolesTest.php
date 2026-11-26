@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Repositories\HoleRecordsStore;
 use App\Domain\Repositories\OrganizationStore;
 use App\Domain\Repositories\TenantHoleRepositoryInterface;
 use App\Enums\UserRole;
@@ -41,6 +42,8 @@ class TenantProjectsMinesHolesTest extends TestCase
         parent::setUp();
         $this->records = new FakeOrganizationStore;
         $this->app->instance(OrganizationStore::class, $this->records);
+        // La jerarquía de un perforista se recorta a su cuadrilla (plan 15, C3).
+        $this->app->instance(HoleRecordsStore::class, new FakeHoleRecordsStore);
     }
 
     private function createTenantWithUsers(): array

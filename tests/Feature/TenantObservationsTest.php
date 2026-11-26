@@ -93,12 +93,13 @@ class TenantObservationsTest extends TestCase
 
         Sanctum::actingAs($outsider);
         $this->postJson('/api/tenant/holes/POZO-01/observations', $this->payload())->assertForbidden();
-        $this->getJson('/api/tenant/holes/POZO-01/observations')->assertOk()->assertJsonPath('can_create', false);
+        // Plan 15, bloque C: fuera de su cuadrilla tampoco lee el libro del pozo.
+        $this->getJson('/api/tenant/holes/POZO-01/observations')->assertForbidden();
 
         Sanctum::actingAs($supervisor);
         $this->postJson('/api/tenant/holes/POZO-01/observations', $this->payload())->assertCreated();
 
-        $this->assertSame(['observations.list@1', 'observations.create@1'], $this->observations->calls,
+        $this->assertSame(['observations.create@1'], $this->observations->calls,
             'El rechazo por permiso no llega al conector.');
     }
 

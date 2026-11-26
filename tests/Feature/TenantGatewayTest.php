@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Connector\CommandDispatcher;
 use App\Support\TokenHasher;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
@@ -31,6 +32,8 @@ class TenantGatewayTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Las políticas deciden solo por permisos: los roles de sistema tienen que existir.
+        $this->seed(RbacSeeder::class);
 
         config([
             'connector.online_ttl_seconds' => 60,

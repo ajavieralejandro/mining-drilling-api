@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Tenant;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenant\StoreTenantHoleAssignmentRequest;
 use App\Policies\TenantHoleAssignmentPolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Services\Tenant\TenantHoleAssignmentService;
 use App\Services\Tenant\TenantHoleOriginResolver;
 use App\Support\GatewayException;
@@ -25,6 +26,9 @@ class TenantHoleAssignmentController extends Controller
     {
         if (! $this->policy->viewAny($request->user(), $context)) {
             return response()->json(['error' => ['code' => 'FORBIDDEN', 'message' => 'Acceso denegado']], 403);
+        }
+        if ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id)) {
+            return $denied;
         }
 
         $requestedOrigin = $request->query('origin_id') ?: $request->header('X-Origin-Id');

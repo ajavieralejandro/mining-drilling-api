@@ -6,6 +6,7 @@ use App\Domain\Repositories\RiskStore;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Tenant\RiskPresenter;
 use App\Policies\TenantRiskPolicy;
+use App\Services\Tenant\HoleAccess;
 use App\Services\Tenant\HoleCrew;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
@@ -104,12 +105,18 @@ class TenantRiskController extends Controller
         if (! $this->policy->view($request->user(), $context)) {
             return $this->forbidden('No autorizado para ver riesgos.');
         }
+        if ($hole !== null && ($denied = app(HoleAccess::class)->denyUnlessVisible($request->user(), $context, $hole, $correlation->id))) {
+            return $denied;
+        }
         $statuses = array_values(array_intersect($this->listParam($request, 'status'), self::STATUSES));
         $levels = array_values(array_intersect($this->listParam($request, 'level'), self::LEVELS));
         $perPage = min(max((int) $request->query('per_page', 20), 1), 100);
         $page = max((int) $request->query('page', 1), 1);
 
-        $result = $this->risks->risks($context, $hole, $statuses, $levels, $page, $perPage, $correlation->id);
+        $visible = $hole === null ? app(HoleAccess::class)->visibleHoleIds($request->user(), $context, $correlation->id) : null;
+        $result = $visible === null
+            ? $this->risks->risks($context, $hole, $statuses, $levels, $page, $perPage, $correlation->id)
+            : $this->risksOfHoles($context, $visible, $statuses, $levels, $page, $perPage, $correlation->id);
 
         $response = [
             'data' => RiskPresenter::many($result['items']),
@@ -134,6 +141,36 @@ class TenantRiskController extends Controller
      *
      * @return list<string>
      */
+    /**
+     * The company-wide list limited to a few holes (plan 15, C3): one query
+     * per hole, merged newest first and paginated here. Fine for a crew
+     * member's handful of holes.
+     *
+     * @param  list<string>  $holeIds
+     * @param  list<string>  $statuses
+     * @param  list<string>  $levels
+     * @return array{items: list<array<string, mixed>>, total: int, counts: array<string, int>}
+     */
+    private function risksOfHoles(TenantContext $context, array $holeIds, array $statuses, array $levels, int $page, int $perPage, string $correlationId): array
+    {
+        $items = [];
+        $counts = ['open' => 0, 'mitigated' => 0, 'closed' => 0, 'open_critical' => 0, 'open_high' => 0, 'holes_with_open' => 0];
+        foreach ($holeIds as $holeId) {
+            $part = $this->risks->risks($context, $holeId, $statuses, $levels, 1, 100, $correlationId);
+            array_push($items, ...$part['items']);
+            foreach ($part['counts'] as $key => $value) {
+                $counts[$key] = ($counts[$key] ?? 0) + (int) $value;
+            }
+        }
+        usort($items, fn (array $a, array $b) => strcmp((string) ($b['reported_at'] ?? ''), (string) ($a['reported_at'] ?? '')));
+
+        return [
+            'items' => array_slice($items, ($page - 1) * $perPage, $perPage),
+            'total' => count($items),
+            'counts' => $counts,
+        ];
+    }
+
     private function listParam(Request $request, string $key): array
     {
         $raw = $request->query($key);
