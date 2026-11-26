@@ -189,6 +189,7 @@ class RbacSeeder extends Seeder
             'geologist' => [
                 'name' => 'Geólogo',
                 'description' => 'Supervisión técnica geológica, litología y edición técnica de pozos.',
+                // Alcance técnico (plan 15, D1): sin gestión de personal, cuadrillas, maquinaria, conexión ni auditoría.
                 'permissions' => [
                     'dashboard.view_global',
                     'dashboard.view_operational',
@@ -208,7 +209,6 @@ class RbacSeeder extends Seeder
                     'drill_holes.update',
                     'drill_holes.update_technical_data',
                     'assignments.view',
-                    'assignments.manage',
                     'progress.view',
                     'progress.create',
                     'progress.approve',
@@ -220,15 +220,9 @@ class RbacSeeder extends Seeder
                     'risks.create',
                     'risks.close',
                     'machines.view',
-                    'machines.manage',
                     'personnel.view',
-                    'personnel.manage',
                     'groups.view',
-                    'groups.manage',
                     'imports.manage',
-                    'source_config.view',
-                    'source_config.manage',
-                    'audit.view',
                 ],
             ],
             'driller' => [

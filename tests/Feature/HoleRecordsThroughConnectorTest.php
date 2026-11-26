@@ -13,6 +13,7 @@ use App\Repositories\Gateway\GatewayHoleRecordsStore;
 use App\Services\Connector\CommandDispatcher;
 use App\Support\GatewayException;
 use App\Support\TenantContext;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -29,6 +30,13 @@ use Tests\TestCase;
 class HoleRecordsThroughConnectorTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** Las políticas deciden solo por permisos: los roles de sistema tienen que existir. */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RbacSeeder::class);
+    }
 
     // ---- HTTP flow (connector replaced by FakeHoleRecordsStore) ----------
 

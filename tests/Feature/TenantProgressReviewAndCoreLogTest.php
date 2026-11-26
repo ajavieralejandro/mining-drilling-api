@@ -11,6 +11,7 @@ use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantContext;
+use Database\Seeders\RbacSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,13 @@ use Tests\TestCase;
 class TenantProgressReviewAndCoreLogTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** Las políticas deciden solo por permisos: los roles de sistema tienen que existir. */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RbacSeeder::class);
+    }
 
     private function setupTenantAndUsers(): array
     {

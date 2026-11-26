@@ -10,11 +10,17 @@ class TenantHoleProgressPolicy
 {
     public function viewAny(User $user, TenantContext $context): bool
     {
-        return $user->hasPermission('progress.view', $context->tenantId)
-            || $user->activeMembership()?->tenant_id === $context->tenantId;
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
+            return true;
+        }
+
+        return $user->hasPermission('progress.view', $context->tenantId);
     }
 
     /**
+     * Whoever sees every hole records progress on any of them; anyone else with
+     * the permission only on the hole where they are the active driller.
+     *
      * @param  \Closure(): ?int  $activeDrillerId  reads the hole's active driller
      *                                             from the client database; called only
      *                                             when the answer depends on it
@@ -25,23 +31,14 @@ class TenantHoleProgressPolicy
             return true;
         }
 
-        if ($user->hasPermission('progress.create', $context->tenantId)) {
-            if ($user->hasPermission('drill_holes.view_all', $context->tenantId) || $user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value) {
-                return true;
-            }
-
-            return $activeDrillerId() === $user->id;
+        if (! $user->hasPermission('progress.create', $context->tenantId)) {
+            return false;
         }
-
-        if ($user->role === UserRole::Supervisor || $context->role === UserRole::Supervisor->value) {
+        if ($user->hasPermission('drill_holes.view_all', $context->tenantId)) {
             return true;
         }
 
-        if ($user->role === UserRole::Driller || $context->role === UserRole::Driller->value) {
-            return $activeDrillerId() === $user->id;
-        }
-
-        return false;
+        return $activeDrillerId() === $user->id;
     }
 
     public function initializeDepth(User $user, TenantContext $context): bool
@@ -50,9 +47,7 @@ class TenantHoleProgressPolicy
             return true;
         }
 
-        return $user->hasPermission('progress.initialize_depth', $context->tenantId)
-            || $user->role === UserRole::Supervisor
-            || $context->role === UserRole::Supervisor->value;
+        return $user->hasPermission('progress.initialize_depth', $context->tenantId);
     }
 
     public function review(User $user, TenantContext $context): bool
@@ -61,9 +56,7 @@ class TenantHoleProgressPolicy
             return true;
         }
 
-        return $user->hasPermission('progress.approve', $context->tenantId)
-            || $user->role === UserRole::Supervisor
-            || $context->role === UserRole::Supervisor->value;
+        return $user->hasPermission('progress.approve', $context->tenantId);
     }
 
     public function logCores(User $user, TenantContext $context): bool
@@ -72,8 +65,6 @@ class TenantHoleProgressPolicy
             return true;
         }
 
-        return $user->hasPermission('geology.log_cores', $context->tenantId)
-            || $user->role === UserRole::Geologist
-            || $context->role === UserRole::Geologist->value;
+        return $user->hasPermission('geology.log_cores', $context->tenantId);
     }
 }

@@ -14,8 +14,7 @@ class TenantRolePolicy
         }
 
         return $user->hasPermission('roles.view', $context->tenantId)
-            || $user->hasPermission('roles.manage', $context->tenantId)
-            || $user->hasPermission('personnel.view', $context->tenantId);
+            || $user->hasPermission('roles.manage', $context->tenantId);
     }
 
     public function manage(User $user, TenantContext $context): bool

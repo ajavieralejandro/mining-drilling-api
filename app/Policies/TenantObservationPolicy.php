@@ -19,8 +19,8 @@ class TenantObservationPolicy
     }
 
     /**
-     * The admin and the supervisor observe any hole; anyone else with the
-     * permission only the holes whose active crew they belong to.
+     * The admin and whoever sees every hole observe any of them; anyone else
+     * with the permission only the holes whose active crew they belong to.
      *
      * @param  \Closure(): list<int>  $crewUserIds  reads the hole's active crew from
      *                                              the client database; called only
@@ -34,8 +34,7 @@ class TenantObservationPolicy
         if (! $user->hasPermission('observations.create', $context->tenantId)) {
             return false;
         }
-        if ($context->role === UserRole::Supervisor->value
-            || $user->hasPermission('drill_holes.view_all', $context->tenantId)) {
+        if ($user->hasPermission('drill_holes.view_all', $context->tenantId)) {
             return true;
         }
 

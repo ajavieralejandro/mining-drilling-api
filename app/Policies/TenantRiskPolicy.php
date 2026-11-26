@@ -18,7 +18,7 @@ class TenantRiskPolicy
     }
 
     /**
-     * The admin, the supervisor and whoever sees every hole report risks
+     * The admin and whoever sees every hole report risks
      * anywhere; anyone else with the permission only on the holes whose
      * active crew they belong to.
      *
@@ -32,8 +32,7 @@ class TenantRiskPolicy
         if (! $user->hasPermission('risks.create', $context->tenantId)) {
             return false;
         }
-        if ($context->role === UserRole::Supervisor->value
-            || $user->hasPermission('drill_holes.view_all', $context->tenantId)) {
+        if ($user->hasPermission('drill_holes.view_all', $context->tenantId)) {
             return true;
         }
 

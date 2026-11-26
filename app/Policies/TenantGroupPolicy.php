@@ -9,9 +9,12 @@ class TenantGroupPolicy
 {
     public function viewAny(User $user, TenantContext $context): bool
     {
+        if ($user->isAdmin() || $user->isSuperAdmin()) {
+            return true;
+        }
+
         return $user->hasPermission('groups.view', $context->tenantId)
-            || $user->hasPermission('personnel.view', $context->tenantId)
-            || $user->activeMembership()?->tenant_id === $context->tenantId;
+            || $user->hasPermission('personnel.view', $context->tenantId);
     }
 
     public function manage(User $user, TenantContext $context): bool

@@ -10,8 +10,11 @@ class TenantHoleAssignmentPolicy
 {
     public function viewAny(User $user, TenantContext $context): bool
     {
-        return $user->hasPermission('assignments.view', $context->tenantId)
-            || $user->activeMembership()?->tenant_id === $context->tenantId;
+        if ($user->isAdmin() || $user->isSuperAdmin() || $context->role === UserRole::Admin->value) {
+            return true;
+        }
+
+        return $user->hasPermission('assignments.view', $context->tenantId);
     }
 
     public function manage(User $user, TenantContext $context): bool
@@ -20,8 +23,6 @@ class TenantHoleAssignmentPolicy
             return true;
         }
 
-        return $user->hasPermission('assignments.manage', $context->tenantId)
-            || $user->role === UserRole::Supervisor
-            || $context->role === UserRole::Supervisor->value;
+        return $user->hasPermission('assignments.manage', $context->tenantId);
     }
 }
