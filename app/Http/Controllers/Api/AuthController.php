@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\SessionUserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,13 +34,13 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => new UserResource($user),
+            'user' => new SessionUserResource($user),
         ]);
     }
 
-    public function me(Request $request): UserResource
+    public function me(Request $request): SessionUserResource
     {
-        return new UserResource($request->user());
+        return new SessionUserResource($request->user());
     }
 
     public function logout(Request $request): JsonResponse

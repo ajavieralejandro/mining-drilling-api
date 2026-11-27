@@ -28,14 +28,15 @@ use App\Http\Controllers\Api\Tenant\TenantHoleAssignmentController;
 use App\Http\Controllers\Api\Tenant\TenantHoleController;
 use App\Http\Controllers\Api\Tenant\TenantHoleProgressController;
 use App\Http\Controllers\Api\Tenant\TenantHoleRegistrationController;
+use App\Http\Controllers\Api\Tenant\TenantMeController;
 use App\Http\Controllers\Api\Tenant\TenantMineController;
 use App\Http\Controllers\Api\Tenant\TenantMineHoleController;
 use App\Http\Controllers\Api\Tenant\TenantObservationController;
-use App\Http\Controllers\Api\Tenant\TenantPlanController;
-use App\Http\Controllers\Api\Tenant\TenantRiskController;
 use App\Http\Controllers\Api\Tenant\TenantOrganizationController;
 use App\Http\Controllers\Api\Tenant\TenantPersonnelController;
+use App\Http\Controllers\Api\Tenant\TenantPlanController;
 use App\Http\Controllers\Api\Tenant\TenantProjectController;
+use App\Http\Controllers\Api\Tenant\TenantRiskController;
 use App\Http\Controllers\Api\Tenant\TenantRoleController;
 use App\Http\Controllers\Api\Tenant\TenantSourceConfigController;
 use App\Http\Middleware\AuthenticateConnector;
@@ -121,6 +122,10 @@ Route::middleware([
     ResolveTenantContext::class,
 ])->prefix('tenant')->group(function () {
     Route::get('/connection', [TenantConnectionController::class, 'show']);
+
+    // Plan 16, E1 y E2: asignaciones y partes de quien inició sesión ("Mi turno").
+    Route::get('/me/assignments', [TenantMeController::class, 'assignments']);
+    Route::get('/me/progress', [TenantMeController::class, 'progress']);
     Route::post('/connection/source', [TenantSourceConfigController::class, 'store']);
     Route::post('/connection/source/cancel', [TenantSourceConfigController::class, 'cancel']);
     Route::post('/connection/source/test', [TenantSourceConfigController::class, 'test']);

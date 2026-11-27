@@ -27,6 +27,7 @@ class PermissionService
         }
 
         $permissions = collect();
+        $hasMembership = false;
 
         // 3. Permisos asignados a través de la membresía en el tenant
         if ($tenantId !== null) {
@@ -37,6 +38,7 @@ class PermissionService
                 ->first();
 
             if ($membership) {
+                $hasMembership = true;
                 foreach ($membership->roles as $role) {
                     $permissions = $permissions->concat($role->permissions->pluck('name'));
                 }
@@ -67,8 +69,10 @@ class PermissionService
             }
         }
 
-        // 5. Fallback para control plane / usuarios sin tenant activo
-        if ($permissions->isEmpty() && $user->role) {
+        // 5. Fallback para control plane / usuarios sin membership activa. Con membership
+        //    los permisos salen solo de sus roles y grupos: un rol propio de la organización
+        //    no hereda los de users.role (que se guarda como helper; plan 15, D2').
+        if ($permissions->isEmpty() && ! $hasMembership && $user->role) {
             $roleSlug = is_string($user->role) ? $user->role : $user->role->value;
             $systemRole = Role::whereNull('tenant_id')
                 ->where('slug', $roleSlug)

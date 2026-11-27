@@ -98,9 +98,9 @@ class TenantHoleAccessTest extends TestCase
         $role = Role::create(['name' => 'Bodega', 'slug' => 'bodega', 'tenant_id' => $this->tenant->id, 'description' => null, 'is_system' => false]);
         Sanctum::actingAs($this->member('bodega', $role));
 
-        // Hoy el usuario de un rol propio queda con users.role = helper y PermissionService
-        // le presta esos permisos (P4, bloque D). Aun así no ve ningún pozo ajeno.
-        $this->getJson('/api/tenant/holes')->assertOk()->assertJsonCount(0, 'data');
+        // Su users.role queda en helper, pero con membership los permisos salen solo de
+        // sus roles (plan 15, D2'): sin permisos de pozos no lista ninguno.
+        $this->getJson('/api/tenant/holes')->assertForbidden();
         $this->getJson('/api/tenant/holes/1001')->assertForbidden();
     }
 
@@ -167,6 +167,62 @@ class TenantHoleAccessTest extends TestCase
 
         Sanctum::actingAs($this->member('supervisor'));
         $this->getJson('/api/tenant/risks')->assertOk()->assertJsonPath('pagination.total', 3);
+    }
+
+    public function test_the_session_reports_the_role_in_the_organization(): void
+    {
+        $role = Role::create(['name' => 'Jefe de turno', 'slug' => 'jefe_turno', 'tenant_id' => $this->tenant->id, 'description' => null, 'is_system' => false]);
+        Sanctum::actingAs($this->member('jefe_turno', $role));
+
+        // Plan 15, D1': la web elige su árbol de rutas por este rol.
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.role', 'jefe_turno')
+            ->assertJsonPath('data.system_role', 'helper')
+            ->assertJsonPath('data.permissions', []);
+    }
+
+    public function test_a_driller_reads_his_assignments_with_the_hole_code(): void
+    {
+        $driller = $this->member('driller');
+        $driller->update(['shift' => 'A']);
+        $this->assign('1002', 'driller', $driller);
+        $this->assign('1003', 'driller', $driller, active: false);
+        Sanctum::actingAs($driller);
+
+        $this->getJson('/api/tenant/me/assignments')
+            ->assertOk()
+            ->assertJsonPath('data.shift', 'A')
+            ->assertJsonCount(1, 'data.assignments')
+            ->assertJsonPath('data.assignments.0.hole_id', '1002')
+            ->assertJsonPath('data.assignments.0.hole_code', 'H-1002')
+            ->assertJsonPath('data.assignments.0.role_in_hole', 'driller');
+    }
+
+    public function test_my_progress_lists_only_my_reports_on_my_holes_newest_first(): void
+    {
+        $driller = $this->member('driller');
+        $other = $this->member('driller');
+        $this->assign('1001', 'driller', $driller);
+        $this->records->seedReport(['hole_id' => '1001', 'user_id' => (string) $driller->id, 'logged_at' => '2026-11-25T10:00:00Z']);
+        $this->records->seedReport(['hole_id' => '1001', 'user_id' => (string) $other->id, 'logged_at' => '2026-11-26T10:00:00Z']);
+        $this->records->seedReport(['hole_id' => '1001', 'user_id' => (string) $driller->id, 'logged_at' => '2026-11-26T08:00:00Z']);
+        $this->records->seedReport(['hole_id' => '1002', 'user_id' => (string) $driller->id, 'logged_at' => '2026-11-26T09:00:00Z']);
+        Sanctum::actingAs($driller);
+
+        $data = $this->getJson('/api/tenant/me/progress')->assertOk()->json('data');
+        $this->assertSame(['2026-11-26T08:00:00Z', '2026-11-25T10:00:00Z'], array_column($data, 'logged_at'));
+        $this->assertSame([$driller->id, $driller->id], array_column($data, 'user_id'));
+    }
+
+    public function test_a_helper_reads_his_assignments_but_not_progress(): void
+    {
+        $helper = $this->member('helper');
+        $this->assign('1001', 'helper', $helper);
+        Sanctum::actingAs($helper);
+
+        $this->getJson('/api/tenant/me/assignments')->assertOk()->assertJsonCount(1, 'data.assignments');
+        $this->getJson('/api/tenant/me/progress')->assertForbidden();
     }
 
     /**
