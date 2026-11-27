@@ -1,0 +1,1696 @@
+{
+  "info": {
+    "_postman_id": "b443bf87-b211-55a5-bf86-f4fb9c92226a",
+    "name": "UndSurf — Fase 3: Permisos por rol y pozos asignados",
+    "description": "Pruebas de los cambios del plan 15 (contexto/implementacion/15-plan-roles-permisos-y-vistas.md).\n\nCada carpeta corresponde a una etapa del despliegue controlado (plan 19). Ejecutar la carpeta 00 y después solo las carpetas de las etapas ya desplegadas:\n- 01 Etapa 1: API `cbf3d39` (geólogo técnico, políticas solo por permiso).\n- 02 Etapa 3: API `ef2939f` (perforista y ayudante limitados a sus pozos). Requiere el conector en línea y al perforista asignado a una cuadrilla activa, con al menos un pozo fuera de su cuadrilla.\n- 03 Etapa 4: API `806e73c` (rol de la organización en la sesión, /tenant/me/*).\n\nUsa los usuarios de TenantRolesUsersSeeder y las variables email_<rol> y password_<rol> de los entornos UndSurf-Local y UndSurf-Production. No crea ni modifica datos: las pruebas de escritura mandan cuerpos vacíos y esperan 403 (sin permiso) o 422 (con permiso, rechazado por la validación).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Login por rol",
+      "description": "Guarda token_<rol> y user_id_<rol> en las variables de la colección.",
+      "item": [
+        {
+          "name": "1. Login Administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_admin\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_admin\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"password\": \"{{password_admin}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "2. Login Supervisor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_supervisor\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_supervisor\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_supervisor}}\",\n  \"password\": \"{{password_supervisor}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "3. Login Geólogo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_geologist\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_geologist\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_geologist}}\",\n  \"password\": \"{{password_geologist}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "4. Login Geotécnico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_geotechnical\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_geotechnical\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_geotechnical}}\",\n  \"password\": \"{{password_geotechnical}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "5. Login Perforista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_driller\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_driller\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_driller}}\",\n  \"password\": \"{{password_driller}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "6. Login Ayudante",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+                  "if (json.token) {",
+                  "    pm.collectionVariables.set(\"token_helper\", json.token);",
+                  "    pm.collectionVariables.set(\"user_id_helper\", String(json.user && json.user.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_helper}}\",\n  \"password\": \"{{password_helper}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Etapa 1 · Matriz y políticas solo por permiso",
+      "description": "API `cbf3d39`. Antes hay que volver a ejecutar `php artisan db:seed --class=RbacSeeder --force` en el servidor.",
+      "item": [
+        {
+          "name": "1. /auth/me Geólogo: alcance técnico (D1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const perms = (pm.response.json().data || {}).permissions || [];",
+                  "pm.test(\"Tiene drill_holes.update_technical_data\", function () { pm.expect(perms).to.include(\"drill_holes.update_technical_data\"); });",
+                  "pm.test(\"Tiene plans.manage\", function () { pm.expect(perms).to.include(\"plans.manage\"); });",
+                  "pm.test(\"Tiene progress.approve\", function () { pm.expect(perms).to.include(\"progress.approve\"); });",
+                  "pm.test(\"Tiene geology.log_cores\", function () { pm.expect(perms).to.include(\"geology.log_cores\"); });",
+                  "pm.test(\"Tiene personnel.view\", function () { pm.expect(perms).to.include(\"personnel.view\"); });",
+                  "pm.test(\"Tiene machines.view\", function () { pm.expect(perms).to.include(\"machines.view\"); });",
+                  "pm.test(\"No tiene personnel.manage\", function () { pm.expect(perms).to.not.include(\"personnel.manage\"); });",
+                  "pm.test(\"No tiene assignments.manage\", function () { pm.expect(perms).to.not.include(\"assignments.manage\"); });",
+                  "pm.test(\"No tiene groups.manage\", function () { pm.expect(perms).to.not.include(\"groups.manage\"); });",
+                  "pm.test(\"No tiene machines.manage\", function () { pm.expect(perms).to.not.include(\"machines.manage\"); });",
+                  "pm.test(\"No tiene source_config.view\", function () { pm.expect(perms).to.not.include(\"source_config.view\"); });",
+                  "pm.test(\"No tiene source_config.manage\", function () { pm.expect(perms).to.not.include(\"source_config.manage\"); });",
+                  "pm.test(\"No tiene audit.view\", function () { pm.expect(perms).to.not.include(\"audit.view\"); });",
+                  "pm.test(\"No tiene roles.view\", function () { pm.expect(perms).to.not.include(\"roles.view\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geologist}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. /auth/me Supervisor: operativo, roles en lectura (D2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const perms = (pm.response.json().data || {}).permissions || [];",
+                  "pm.test(\"Tiene personnel.manage\", function () { pm.expect(perms).to.include(\"personnel.manage\"); });",
+                  "pm.test(\"Tiene assignments.manage\", function () { pm.expect(perms).to.include(\"assignments.manage\"); });",
+                  "pm.test(\"Tiene progress.approve\", function () { pm.expect(perms).to.include(\"progress.approve\"); });",
+                  "pm.test(\"Tiene roles.view\", function () { pm.expect(perms).to.include(\"roles.view\"); });",
+                  "pm.test(\"Tiene machines.view\", function () { pm.expect(perms).to.include(\"machines.view\"); });",
+                  "pm.test(\"No tiene roles.manage\", function () { pm.expect(perms).to.not.include(\"roles.manage\"); });",
+                  "pm.test(\"No tiene source_config.manage\", function () { pm.expect(perms).to.not.include(\"source_config.manage\"); });",
+                  "pm.test(\"No tiene machines.manage\", function () { pm.expect(perms).to.not.include(\"machines.manage\"); });",
+                  "pm.test(\"No tiene drill_holes.create\", function () { pm.expect(perms).to.not.include(\"drill_holes.create\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. /auth/me Perforista: solo sus pozos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const perms = (pm.response.json().data || {}).permissions || [];",
+                  "pm.test(\"Tiene drill_holes.view_assigned\", function () { pm.expect(perms).to.include(\"drill_holes.view_assigned\"); });",
+                  "pm.test(\"Tiene progress.create\", function () { pm.expect(perms).to.include(\"progress.create\"); });",
+                  "pm.test(\"Tiene risks.create\", function () { pm.expect(perms).to.include(\"risks.create\"); });",
+                  "pm.test(\"No tiene drill_holes.view_all\", function () { pm.expect(perms).to.not.include(\"drill_holes.view_all\"); });",
+                  "pm.test(\"No tiene personnel.view\", function () { pm.expect(perms).to.not.include(\"personnel.view\"); });",
+                  "pm.test(\"No tiene progress.approve\", function () { pm.expect(perms).to.not.include(\"progress.approve\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. /auth/me Ayudante: sin avance (D4)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const perms = (pm.response.json().data || {}).permissions || [];",
+                  "pm.test(\"Tiene drill_holes.view_assigned\", function () { pm.expect(perms).to.include(\"drill_holes.view_assigned\"); });",
+                  "pm.test(\"Tiene observations.create\", function () { pm.expect(perms).to.include(\"observations.create\"); });",
+                  "pm.test(\"Tiene risks.create\", function () { pm.expect(perms).to.include(\"risks.create\"); });",
+                  "pm.test(\"No tiene progress.view\", function () { pm.expect(perms).to.not.include(\"progress.view\"); });",
+                  "pm.test(\"No tiene progress.create\", function () { pm.expect(perms).to.not.include(\"progress.create\"); });",
+                  "pm.test(\"No tiene personnel.view\", function () { pm.expect(perms).to.not.include(\"personnel.view\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_helper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Geólogo registra personal (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geologist}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "6. Supervisor registra personal con cuerpo vacío (422: pasa el permiso, no crea nada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 422\", function () { pm.expect(pm.response.code).to.eql(422); });",
+                  "const errors = pm.response.json().errors || {};",
+                  "pm.test(\"Valida name, email y role\", function () { pm.expect(errors).to.include.all.keys(\"name\", \"email\", \"role\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "7. Geólogo crea grupo (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geologist}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/groups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "groups"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "8. Supervisor crea grupo con cuerpo vacío (422: pasa el permiso, no crea nada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 422\", function () { pm.expect(pm.response.code).to.eql(422); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/groups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "groups"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "9. Geólogo lista roles (403: personnel.view ya no abre los roles, B5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geologist}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "10. Supervisor lista roles (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "11. Supervisor lista personal (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "12. Perforista lista personal (403, B6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "13. Ayudante lista personal (403, B6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_helper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "14. Ayudante lista grupos (403, B6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_helper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/groups",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "groups"
+              ]
+            }
+          }
+        },
+        {
+          "name": "15. Geotécnico abre la bandeja de partes pendientes (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geotechnical}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/progress/pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "progress",
+                "pending"
+              ]
+            }
+          }
+        },
+        {
+          "name": "16. Geólogo abre la bandeja de partes pendientes (pasa el permiso; 200 con el conector en línea)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Pasa el permiso (no es 403)\", function () { pm.expect(pm.response.code).to.not.eql(403); });",
+                  "if (pm.response.code === 503) {",
+                  "    console.log(\"Conector fuera de línea: no se puede comprobar el 200.\");",
+                  "} else {",
+                  "    pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_geologist}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/progress/pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "progress",
+                "pending"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Etapa 3 · Pozos asignados",
+      "description": "API `ef2939f`. Si el perforista no tiene pozos o ve todos, las pruebas que necesitan un pozo propio o uno ajeno se omiten (aparece en la consola).",
+      "item": [
+        {
+          "name": "1. Supervisor lista pozos (ve todos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const ids = (pm.response.json().data || []).map(function (h) { return String(h.id); });",
+                  "pm.collectionVariables.set(\"hole_ids_all\", JSON.stringify(ids));",
+                  "pm.test(\"Hay pozos para comparar\", function () { pm.expect(ids.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes?limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Perforista lista pozos (solo los de su cuadrilla)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const ids = (pm.response.json().data || []).map(function (h) { return String(h.id); });",
+                  "const all = JSON.parse(pm.collectionVariables.get(\"hole_ids_all\") || \"[]\");",
+                  "pm.test(\"Todos sus pozos están entre los del supervisor\", function () { ids.forEach(function (id) { pm.expect(all).to.include(id); }); });",
+                  "pm.test(\"No ve más pozos que el supervisor\", function () { pm.expect(ids.length).to.be.at.most(all.length); });",
+                  "pm.collectionVariables.set(\"hole_ids_driller\", JSON.stringify(ids));",
+                  "pm.collectionVariables.set(\"hole_propio\", ids[0] || \"\");",
+                  "const ajeno = all.find(function (id) { return ids.indexOf(id) === -1; });",
+                  "pm.collectionVariables.set(\"hole_ajeno\", ajeno || \"\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes?limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Perforista abre un pozo ajeno (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"hole_ajeno\")) {",
+                  "    console.log(\"Se omite: hole_ajeno vacío (ver la descripción de la carpeta).\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });",
+                  "pm.test(\"Código FORBIDDEN\", function () { pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes/{{hole_ajeno}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes",
+                "{{hole_ajeno}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Perforista lee el avance de un pozo ajeno (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"hole_ajeno\")) {",
+                  "    console.log(\"Se omite: hole_ajeno vacío (ver la descripción de la carpeta).\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes/{{hole_ajeno}}/progress",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes",
+                "{{hole_ajeno}}",
+                "progress"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Perforista lee la cuadrilla de un pozo ajeno (403)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"hole_ajeno\")) {",
+                  "    console.log(\"Se omite: hole_ajeno vacío (ver la descripción de la carpeta).\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes/{{hole_ajeno}}/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes",
+                "{{hole_ajeno}}",
+                "assignments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Perforista abre su pozo (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"hole_propio\")) {",
+                  "    console.log(\"Se omite: hole_propio vacío (ver la descripción de la carpeta).\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test(\"Es su pozo\", function () { pm.expect(String(pm.response.json().data.id)).to.eql(pm.collectionVariables.get(\"hole_propio\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes/{{hole_propio}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes",
+                "{{hole_propio}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Perforista ve la jerarquía recortada (C3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const mine = JSON.parse(pm.collectionVariables.get(\"hole_ids_driller\") || \"[]\");",
+                  "const projects = (pm.response.json().data || {}).projects || [];",
+                  "const inTree = [];",
+                  "projects.forEach(function (p) { (p.mines || []).forEach(function (m) { (m.holes || []).forEach(function (h) { inTree.push(String(h.hole_id)); }); }); });",
+                  "pm.test(\"Solo aparecen sus pozos\", function () { inTree.forEach(function (id) { pm.expect(mine).to.include(id); }); });",
+                  "pm.test(\"No quedan minas vacías\", function () { projects.forEach(function (p) { (p.mines || []).forEach(function (m) { pm.expect(m.holes_count).to.be.above(0); }); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/hierarchy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "hierarchy"
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Perforista lista los riesgos de la empresa (solo de sus pozos, C3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const mine = JSON.parse(pm.collectionVariables.get(\"hole_ids_driller\") || \"[]\");",
+                  "const risks = pm.response.json().data || [];",
+                  "pm.test(\"Cada riesgo es de uno de sus pozos\", function () { risks.forEach(function (r) { pm.expect(mine).to.include(String(r.hole_id)); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/risks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "risks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "9. Supervisor abre el pozo ajeno al perforista (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"hole_ajeno\")) {",
+                  "    console.log(\"Se omite: hole_ajeno vacío (ver la descripción de la carpeta).\");",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_supervisor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/holes/{{hole_ajeno}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "holes",
+                "{{hole_ajeno}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Etapa 4 · Sesión y «mis» endpoints",
+      "description": "API `806e73c`. Ejecutar después de la carpeta 02, que guarda hole_ids_driller.",
+      "item": [
+        {
+          "name": "1. /auth/me Perforista: rol de la organización (D1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"role es el de la membership\", function () { pm.expect(data.role).to.eql(\"driller\"); });",
+                  "pm.test(\"system_role presente\", function () { pm.expect(data).to.have.property(\"system_role\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Perforista: mis asignaciones (E1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Trae shift y assignments\", function () { pm.expect(data).to.have.property(\"shift\"); pm.expect(data.assignments).to.be.an(\"array\"); });",
+                  "const listed = JSON.parse(pm.collectionVariables.get(\"hole_ids_driller\") || \"null\");",
+                  "if (listed) { pm.test(\"Cada asignación es de un pozo que lista\", function () { data.assignments.forEach(function (a) { pm.expect(listed).to.include(String(a.hole_id)); }); }); }",
+                  "pm.test(\"Cada asignación trae código y rol en el pozo\", function () { data.assignments.forEach(function (a) { pm.expect(a).to.include.keys(\"hole_code\", \"role_in_hole\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/me/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "me",
+                "assignments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Perforista: mis partes (E2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "const rows = pm.response.json().data || [];",
+                  "const me = Number(pm.collectionVariables.get(\"user_id_driller\"));",
+                  "pm.test(\"Todos los partes son suyos\", function () { rows.forEach(function (r) { pm.expect(r.user_id).to.eql(me); }); });",
+                  "pm.test(\"Del más reciente al más antiguo\", function () { for (let i = 1; i < rows.length; i++) { pm.expect(String(rows[i - 1].logged_at) >= String(rows[i].logged_at)).to.be.true; } });",
+                  "pm.test(\"Respeta el límite\", function () { pm.expect(rows.length).to.be.at.most(10); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_driller}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/me/progress?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "me",
+                "progress"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Ayudante: mis asignaciones (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_helper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/me/assignments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "me",
+                "assignments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Ayudante: mis partes (403, sin progress.view)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_helper}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tenant/me/progress",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "me",
+                "progress"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "token_supervisor",
+      "value": ""
+    },
+    {
+      "key": "token_geologist",
+      "value": ""
+    },
+    {
+      "key": "token_geotechnical",
+      "value": ""
+    },
+    {
+      "key": "token_driller",
+      "value": ""
+    },
+    {
+      "key": "token_helper",
+      "value": ""
+    },
+    {
+      "key": "user_id_admin",
+      "value": ""
+    },
+    {
+      "key": "user_id_supervisor",
+      "value": ""
+    },
+    {
+      "key": "user_id_geologist",
+      "value": ""
+    },
+    {
+      "key": "user_id_geotechnical",
+      "value": ""
+    },
+    {
+      "key": "user_id_driller",
+      "value": ""
+    },
+    {
+      "key": "user_id_helper",
+      "value": ""
+    },
+    {
+      "key": "hole_ids_all",
+      "value": ""
+    },
+    {
+      "key": "hole_ids_driller",
+      "value": ""
+    },
+    {
+      "key": "hole_propio",
+      "value": ""
+    },
+    {
+      "key": "hole_ajeno",
+      "value": ""
+    }
+  ]
+}
