@@ -8,7 +8,7 @@
   "item": [
     {
       "name": "00 Login por rol",
-      "description": "Guarda token_<rol> y user_id_<rol> en las variables de la colección.",
+      "description": "Guarda f3_token_<rol> y f3_user_id_<rol> en las variables de la colección. Llevan el prefijo f3_ para no chocar con las token_<rol> de los entornos, que tienen prioridad sobre la colección.",
       "item": [
         {
           "name": "1. Login Administrador",
@@ -22,8 +22,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_admin\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_admin\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_admin\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_admin\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -69,8 +69,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_supervisor\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_supervisor\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_supervisor\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_supervisor\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -116,8 +116,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_geologist\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_geologist\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_geologist\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_geologist\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -163,8 +163,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_geotechnical\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_geotechnical\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_geotechnical\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_geotechnical\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -210,8 +210,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_driller\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_driller\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_driller\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_driller\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -257,8 +257,8 @@
                   "const json = pm.response.json();",
                   "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
                   "if (json.token) {",
-                  "    pm.collectionVariables.set(\"token_helper\", json.token);",
-                  "    pm.collectionVariables.set(\"user_id_helper\", String(json.user && json.user.id));",
+                  "    pm.collectionVariables.set(\"f3_token_helper\", json.token);",
+                  "    pm.collectionVariables.set(\"f3_user_id_helper\", String(json.user && json.user.id));",
                   "}"
                 ]
               }
@@ -335,7 +335,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geologist}}"
+                "value": "Bearer {{f3_token_geologist}}"
               }
             ],
             "url": {
@@ -382,7 +382,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -426,7 +426,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -470,7 +470,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_helper}}"
+                "value": "Bearer {{f3_token_helper}}"
               }
             ],
             "url": {
@@ -511,7 +511,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geologist}}"
+                "value": "Bearer {{f3_token_geologist}}"
               }
             ],
             "url": {
@@ -558,7 +558,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -603,7 +603,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geologist}}"
+                "value": "Bearer {{f3_token_geologist}}"
               }
             ],
             "url": {
@@ -648,7 +648,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -689,7 +689,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geologist}}"
+                "value": "Bearer {{f3_token_geologist}}"
               }
             ],
             "url": {
@@ -726,7 +726,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -763,7 +763,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -800,7 +800,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -837,7 +837,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_helper}}"
+                "value": "Bearer {{f3_token_helper}}"
               }
             ],
             "url": {
@@ -874,7 +874,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_helper}}"
+                "value": "Bearer {{f3_token_helper}}"
               }
             ],
             "url": {
@@ -911,7 +911,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geotechnical}}"
+                "value": "Bearer {{f3_token_geotechnical}}"
               }
             ],
             "url": {
@@ -935,6 +935,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test(\"Sesión válida (no es 401)\", function () { pm.expect(pm.response.code).to.not.eql(401); });",
                   "pm.test(\"Pasa el permiso (no es 403)\", function () { pm.expect(pm.response.code).to.not.eql(403); });",
                   "if (pm.response.code === 503) {",
                   "    console.log(\"Conector fuera de línea: no se puede comprobar el 200.\");",
@@ -954,7 +955,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_geologist}}"
+                "value": "Bearer {{f3_token_geologist}}"
               }
             ],
             "url": {
@@ -1001,7 +1002,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -1052,7 +1053,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1108,7 +1109,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1158,7 +1159,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1209,7 +1210,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1261,7 +1262,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1305,7 +1306,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1345,7 +1346,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1394,7 +1395,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_supervisor}}"
+                "value": "Bearer {{f3_token_supervisor}}"
               }
             ],
             "url": {
@@ -1441,7 +1442,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1483,7 +1484,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1509,7 +1510,7 @@
                 "exec": [
                   "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
                   "const rows = pm.response.json().data || [];",
-                  "const me = Number(pm.collectionVariables.get(\"user_id_driller\"));",
+                  "const me = Number(pm.collectionVariables.get(\"f3_user_id_driller\"));",
                   "pm.test(\"Todos los partes son suyos\", function () { rows.forEach(function (r) { pm.expect(r.user_id).to.eql(me); }); });",
                   "pm.test(\"Del más reciente al más antiguo\", function () { for (let i = 1; i < rows.length; i++) { pm.expect(String(rows[i - 1].logged_at) >= String(rows[i].logged_at)).to.be.true; } });",
                   "pm.test(\"Respeta el límite\", function () { pm.expect(rows.length).to.be.at.most(10); });"
@@ -1526,7 +1527,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_driller}}"
+                "value": "Bearer {{f3_token_driller}}"
               }
             ],
             "url": {
@@ -1570,7 +1571,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_helper}}"
+                "value": "Bearer {{f3_token_helper}}"
               }
             ],
             "url": {
@@ -1608,7 +1609,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{token_helper}}"
+                "value": "Bearer {{f3_token_helper}}"
               }
             ],
             "url": {
@@ -1629,51 +1630,51 @@
   ],
   "variable": [
     {
-      "key": "token_admin",
+      "key": "f3_token_admin",
       "value": ""
     },
     {
-      "key": "token_supervisor",
+      "key": "f3_token_supervisor",
       "value": ""
     },
     {
-      "key": "token_geologist",
+      "key": "f3_token_geologist",
       "value": ""
     },
     {
-      "key": "token_geotechnical",
+      "key": "f3_token_geotechnical",
       "value": ""
     },
     {
-      "key": "token_driller",
+      "key": "f3_token_driller",
       "value": ""
     },
     {
-      "key": "token_helper",
+      "key": "f3_token_helper",
       "value": ""
     },
     {
-      "key": "user_id_admin",
+      "key": "f3_user_id_admin",
       "value": ""
     },
     {
-      "key": "user_id_supervisor",
+      "key": "f3_user_id_supervisor",
       "value": ""
     },
     {
-      "key": "user_id_geologist",
+      "key": "f3_user_id_geologist",
       "value": ""
     },
     {
-      "key": "user_id_geotechnical",
+      "key": "f3_user_id_geotechnical",
       "value": ""
     },
     {
-      "key": "user_id_driller",
+      "key": "f3_user_id_driller",
       "value": ""
     },
     {
-      "key": "user_id_helper",
+      "key": "f3_user_id_helper",
       "value": ""
     },
     {
