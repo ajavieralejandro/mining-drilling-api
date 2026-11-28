@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\ResolveRequestCorrelation;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Policies\TenantPersonnelPolicy;
+use App\Services\Tenant\RoleGrantGuard;
 use App\Services\Tenant\TenantPersonnelService;
 use App\Support\RequestCorrelation;
 use App\Support\TenantContext;
@@ -63,6 +64,9 @@ class TenantPersonnelController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
+        // Nadie da de alta a alguien con un rol que tenga permisos que él no tiene.
+        app(RoleGrantGuard::class)->assertCanGrantSlug($request->user(), $context, trim($validated['role']), 'role');
+
         try {
             $result = $this->service->create($context, $request->user(), $validated, $correlation->id);
 
@@ -113,6 +117,10 @@ class TenantPersonnelController extends Controller
             ],
             'external_hr_id' => ['nullable', 'string', 'max:64'],
         ]);
+
+        if (! empty($validated['role'])) {
+            app(RoleGrantGuard::class)->assertCanGrantSlug($request->user(), $context, trim($validated['role']), 'role');
+        }
 
         $result = $this->service->update($context, $request->user(), $id, $validated, $correlation->id);
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\UserGroup;
 use App\Policies\TenantGroupPolicy;
+use App\Services\Tenant\RoleGrantGuard;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,10 @@ class TenantGroupController extends Controller
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', 'exists:roles,id'],
         ]);
+
+        // Solo integrantes de la organización y roles que quien asigna ya tiene.
+        app(RoleGrantGuard::class)->assertMembers($context, $validated['user_ids'] ?? [], 'user_ids');
+        app(RoleGrantGuard::class)->assertCanGrantIds($request->user(), $context, $validated['role_ids'] ?? [], 'role_ids');
 
         $group = UserGroup::create([
             'tenant_id' => $context->tenantId,
@@ -114,6 +119,9 @@ class TenantGroupController extends Controller
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', 'exists:roles,id'],
         ]);
+
+        app(RoleGrantGuard::class)->assertMembers($context, $validated['user_ids'] ?? [], 'user_ids');
+        app(RoleGrantGuard::class)->assertCanGrantIds($request->user(), $context, $validated['role_ids'] ?? [], 'role_ids');
 
         if (isset($validated['name'])) {
             $group->name = $validated['name'];
