@@ -1,0 +1,695 @@
+{
+  "info": {
+    "_postman_id": "d755f378-e84d-5192-80ff-79ad86261c58",
+    "name": "UndSurf — Rol Ayudante",
+    "description": "Qué puede y qué no puede hacer el rol Ayudante, según la matriz de permisos (plan 15, sección 4) y RbacSeeder. Generada desde los permisos del seeder.\n\nUsa email_helper, password_helper y, opcional, hole_id del entorno (UndSurf-Production o UndSurf-Local). No crea ni modifica datos: las altas mandan un cuerpo vacío y esperan 422 (con permiso) o 403 (sin permiso).\n\nRequiere la API en 806e73c o posterior (/tenant/me/*) y el conector en línea para pozos, partes y riesgos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Login Ayudante",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+              "const json = pm.response.json();",
+              "pm.test(\"Retorna token\", function () { pm.expect(json.token).to.be.a(\"string\"); });",
+              "if (json.token) { pm.collectionVariables.set(\"r_token\", json.token); pm.collectionVariables.set(\"r_user_id\", String(json.user && json.user.id)); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email_helper}}\",\n  \"password\": \"{{password_helper}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "02. /auth/me: rol y permisos de la matriz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+              "const data = pm.response.json().data || {};",
+              "const perms = (data.permissions || []).slice().sort();",
+              "pm.test(\"role es helper\", function () { pm.expect(data.role).to.eql(\"helper\"); });",
+              "const expected = [\"assignments.view\", \"dashboard.view_personal\", \"drill_holes.view_assigned\", \"mines.view\", \"observations.create\", \"observations.view\", \"projects.view\", \"risks.create\", \"risks.view\"];",
+              "const extra = perms.filter(function (p) { return expected.indexOf(p) === -1; });",
+              "const missing = expected.filter(function (p) { return perms.indexOf(p) === -1; });",
+              "pm.test(\"Sin permisos de más (9 esperados)\", function () { pm.expect(extra, \"de más: \" + extra.join(\", \")).to.eql([]); });",
+              "pm.test(\"Sin permisos de menos\", function () { pm.expect(missing, \"faltan: \" + missing.join(\", \")).to.eql([]); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/auth/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "auth",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03. Mis asignaciones (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+              "const list = ((pm.response.json().data || {}).assignments || []).map(function (a) { return String(a.hole_id); });",
+              "pm.collectionVariables.set(\"r_my_hole_ids\", JSON.stringify(list));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/me/assignments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "me",
+            "assignments"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04. Mis partes (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/me/progress?limit=10",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "me",
+            "progress"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "05. Listado de pozos (200, solo los suyos)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });",
+              "const ids = (pm.response.json().data || []).map(function (h) { return String(h.id); });",
+              "const mine = JSON.parse(pm.collectionVariables.get(\"r_my_hole_ids\") || \"[]\");",
+              "pm.test(\"Solo pozos de su cuadrilla\", function () { ids.forEach(function (id) { pm.expect(mine).to.include(id); }); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/holes?limit=50",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "holes"
+          ],
+          "query": [
+            {
+              "key": "limit",
+              "value": "50"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "06. Ficha del pozo {{hole_id}} (200 si es suyo, 403 si no)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.environment.get(\"hole_id\")) { console.log(\"Se omite: el entorno no tiene hole_id.\"); pm.execution.skipRequest(); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const mine = JSON.parse(pm.collectionVariables.get(\"r_my_hole_ids\") || \"[]\");",
+              "const propio = mine.indexOf(String(pm.environment.get(\"hole_id\"))) !== -1;",
+              "pm.test(propio ? \"Es suyo: 200\" : \"No es suyo: 403\", function () { pm.expect(pm.response.code).to.eql(propio ? 200 : 403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/holes/{{hole_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "holes",
+            "{{hole_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "07. Personal (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/personnel",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "personnel"
+          ]
+        }
+      }
+    },
+    {
+      "name": "08. Grupos (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/groups",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "groups"
+          ]
+        }
+      }
+    },
+    {
+      "name": "09. Roles (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/roles",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "roles"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Planes (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/plans",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "plans"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. Bandeja de partes pendientes (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/progress/pending",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "progress",
+            "pending"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. Riesgos de la empresa (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 200\", function () { pm.expect(pm.response.code).to.eql(200); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/risks",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "risks"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Alta de personal, cuerpo vacío (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/personnel",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "personnel"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "14. Alta de grupo, cuerpo vacío (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/groups",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "groups"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "15. Alta de plan, cuerpo vacío (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/plans",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "plans"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    },
+    {
+      "name": "16. Alta de pozo, cuerpo vacío (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Código 403\", function () { pm.expect(pm.response.code).to.eql(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{r_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tenant/holes",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tenant",
+            "holes"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "r_token",
+      "value": ""
+    },
+    {
+      "key": "r_user_id",
+      "value": ""
+    },
+    {
+      "key": "r_my_hole_ids",
+      "value": ""
+    }
+  ]
+}
